@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#090d19">
+  <title>YKS Master</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div id="toast" class="toast" aria-live="polite"></div>
+  <div id="loadingScreen" class="loading-screen"><div class="loader-mark">YM</div><span>YKS Master hazırlanıyor…</span></div>
+
+  <section id="authView" class="auth-shell hidden">
+    <div class="auth-brand">
+      <div class="brand-row"><div class="brand-mark">YM</div><div><b>YKS Master</b><span>YKS çalışma sistemi</span></div></div>
+      <div class="auth-copy">
+        <span class="pill">2026 YKS · SAY / EA / SÖZ</span>
+        <h1>Çalışmanı kaydet.<br><em>İlerlemeni gör.</em><br>Hedefine yaklaş.</h1>
+        <p>Müfredat, kaynak, soru, deneme, tekrar, günlük plan, performans ve AI Pro araçları tek bir kişisel çalışma alanında.</p>
+      </div>
+      <div class="auth-proof">
+        <div><strong>2026</strong><span>MEB/TTKB kapsamı</span></div>
+        <div><strong>30 gün</strong><span>Oturum hatırlama</span></div>
+        <div><strong>3 alan</strong><span>Sayısal · EA · Sözel</span></div>
+      </div>
+    </div>
+
+    <div class="auth-card-wrap">
+      <div class="auth-card">
+        <div class="auth-tabs">
+          <button id="loginTab" class="auth-tab active" type="button">Giriş Yap</button>
+          <button id="registerTab" class="auth-tab" type="button">Kayıt Ol</button>
+        </div>
+
+        <form id="loginForm" class="stack-lg">
+          <div class="form-title"><span class="eyebrow">DEVAM ET</span><h2>Tekrar hoş geldin</h2><p>Kaldığın yerden devam etmek için giriş yap.</p></div>
+          <label>E-posta<input name="email" type="email" autocomplete="email" required placeholder="ornek@mail.com"></label>
+          <label>Şifre<input name="password" type="password" autocomplete="current-password" required placeholder="••••••••"></label>
+          <button class="btn primary wide" type="submit">Giriş Yap</button>
+        </form>
+
+        <form id="registerForm" class="stack-lg hidden">
+          <div class="form-title"><span class="eyebrow">YKS PROFİLİ</span><h2>Hedefini sisteme tanıt</h2><p>Hedef bilgilerin Temel pakette de profilinin parçasıdır.</p></div>
+          <div class="form-grid two">
+            <label>Ad soyad<input name="name" autocomplete="name" required></label>
+            <label>E-posta<input name="email" type="email" autocomplete="email" required></label>
+            <label>Şifre<input name="password" type="password" minlength="8" autocomplete="new-password" required></label>
+            <label>Alan<select name="track" required><option value="">Seç</option><option value="sayisal">Sayısal</option><option value="esit_agirlik">Eşit Ağırlık</option><option value="sozel">Sözel</option></select></label>
+            <label>Hedef şehir<input name="targetCity" required placeholder="İstanbul"></label>
+            <label>Hedef üniversite <span class="muted-inline">(isteğe bağlı)</span><input name="targetUniversity" placeholder="Boğaziçi Üniversitesi"></label>
+            <label>Hedef bölüm<input name="targetDepartment" required placeholder="Psikoloji"></label>
+            <label>Hedef sıralama<input name="targetRank" type="number" min="1" max="5000000" required placeholder="10000"></label>
+          </div>
+          <button class="btn primary wide" type="submit">Hesabımı Oluştur</button>
+          <p class="fine-print">Kayıttan sonra satın aldığın paket kodunu hesabına tanımlayabilirsin.</p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section id="appView" class="app-shell hidden">
+    <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-head">
+        <div class="brand-mark small">YM</div>
+        <div><strong>YKS Master</strong><span>V2</span></div>
+        <button id="closeMenu" class="icon-btn mobile-only" aria-label="Menüyü kapat">×</button>
+      </div>
+
+      <nav id="nav" class="nav-list">
+        <p class="nav-label">ÇALIŞMA</p>
+        <button class="nav-item active" data-page="today"><i>⌂</i><span>Bugün</span></button>
+        <button class="nav-item" data-page="curriculum" data-paid><i>✓</i><span>Müfredat</span></button>
+        <button class="nav-item" data-page="planner" data-paid><i>▦</i><span>Çalışma Programı</span></button>
+        <button class="nav-item" data-page="exams" data-paid><i>▥</i><span>Deneme Takibi</span></button>
+        <button class="nav-item" data-page="questions" data-paid><i>◎</i><span>Soru Takibi</span></button>
+        <button class="nav-item" data-page="resources" data-paid><i>▤</i><span>Kaynak Takibi</span></button>
+        <button class="nav-item" data-page="archive" data-paid><i>◫</i><span>Yanlış Soru Arşivi</span></button>
+        <button class="nav-item" data-page="review" data-paid><i>↻</i><span>Tekrar Listesi</span></button>
+        <button class="nav-item" data-page="performance" data-paid><i>⌁</i><span>Ders Performansı</span></button>
+        <button class="nav-item" data-page="focus" data-paid><i>◷</i><span>Pomodoro & Çalışma</span></button>
+        <button class="nav-item" data-page="sleep" data-paid><i>☾</i><span>Uyku Takibi</span></button>
+        <button class="nav-item" data-page="badges" data-paid><i>◇</i><span>Rozetler</span></button>
+
+        <p class="nav-label">AI PRO</p>
+        <button class="nav-item pro-nav" data-page="aiCoach" data-pro><i>✦</i><span>AI Koç</span><b>PRO</b></button>
+        <button class="nav-item pro-nav" data-page="flashcards" data-pro><i>▱</i><span>Flashcard</span><b>PRO</b></button>
+        <button class="nav-item pro-nav" data-page="testLab" data-pro><i>⌁</i><span>Test Lab</span><b>PRO</b></button>
+        <button class="nav-item pro-nav" data-page="aiProgram" data-pro><i>▦</i><span>AI Program</span><b>PRO</b></button>
+        <button class="nav-item pro-nav" data-page="solver" data-pro><i>◫</i><span>Soru Çözücü</span><b>PRO</b></button>
+        <button class="nav-item pro-nav" data-page="wrongAnalysis" data-pro><i>⌁</i><span>Yanlış Analizi</span><b>PRO</b></button>
+        <button class="nav-item pro-nav" data-page="duels" data-pro><i>⚔</i><span>Düello & Liderlik</span><b>PRO</b></button>
+
+        <p class="nav-label">HESAP</p>
+        <button class="nav-item" data-page="settings"><i>⚙</i><span>Ayarlar & Paket</span></button>
+      </nav>
+
+      <div class="sidebar-user">
+        <div id="avatar" class="avatar">Y</div>
+        <div class="user-meta"><strong id="sidebarName">Öğrenci</strong><span id="sidebarPlan">Paket Yok</span></div>
+        <button id="logoutButton" class="icon-btn" title="Çıkış yap">↪</button>
+      </div>
+    </aside>
+
+    <main class="main-shell">
+      <header class="topbar">
+        <button id="menuButton" class="icon-btn menu-btn" aria-label="Menüyü aç">☰</button>
+        <div class="page-title"><span id="pageEyebrow" class="eyebrow">BUGÜN</span><h2 id="pageTitle">Kontrol Merkezi</h2></div>
+        <div class="topbar-actions"><span id="topGoal" class="goal-chip"></span><span id="planBadge" class="plan-badge">—</span></div>
+      </header>
+      <div id="pageRoot" class="page-root"></div>
+    </main>
+  </section>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>

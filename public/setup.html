@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>YKS Master V2 Kurulum</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="setup-shell">
+    <div class="panel narrow">
+      <span class="eyebrow">TEK SEFERLİK KURULUM</span>
+      <h1>Veritabanını hazırla</h1>
+      <p class="muted">Vercel'de <b>SETUP_SECRET</b> olarak eklediğin değeri gir. Bu işlem yalnızca <b>yks2_</b> ile başlayan V2 tablolarını oluşturur; eski tablolarına dokunmaz.</p>
+      <label>Setup secret<input id="secret" type="password" autocomplete="off"></label>
+      <button id="run" class="btn primary wide">Kurulumu Çalıştır</button>
+      <pre id="result" class="code-result"></pre>
+    </div>
+  </main>
+  <script src="/setup.js" defer></script>
+</body>
+</html>
