@@ -165,20 +165,83 @@ export default async function handler(req,res){
     return res.status(201).json({codes});
   }
 
-  if(action==='setPlan'){
-    const email=text(req.body?.email,180).toLowerCase();
-    const plan=text(req.body?.plan,20);
-    const days=int(req.body?.days,1,3650)||30;
-    if(!email||!['none','basic','ai_pro'].includes(plan))return res.status(400).json({error:'Bilgileri kontrol et.'});
-    const expiry=plan==='none'?null:new Date(Date.now()+days*86400000);
-    const r=await query(
-      `UPDATE yks2_users SET plan=$1,plan_expires_at=$2,updated_at=NOW() WHERE email=$3
-       RETURNING id,email,plan,plan_expires_at`,
-      [plan,expiry,email]
-    );
-    if(!r.rows.length)return res.status(404).json({error:'Kullanıcı bulunamadı.'});
-    return res.status(200).json({user:r.rows[0]});
+ if(action==='setPlan'){
+  const email=text(req.body?.email,180).toLowerCase();
+  const plan=text(req.body?.plan,20);
+  const days=int(req.body?.days,1,3650)||30;
+
+  if(!email||!['none','basic','ai_pro'].includes(plan)){
+    return res.status(400).json({
+      error:'Bilgileri kontrol et.'
+    });
   }
+
+  const before=await query(
+    `SELECT id,email,plan,plan_expires_at
+     FROM yks2_users
+     WHERE email=$1`,
+    [email]
+  );
+
+  if(!before.rows.length){
+    return res.status(404).json({
+      error:'Kullanıcı bulunamadı.'
+    });
+  }
+
+  const previous=before.rows[0];
+
+  const expiry=
+    plan==='none'
+      ? null
+      : new Date(Date.now()+days*86400000);
+
+  const r=await query(
+    `UPDATE yks2_users
+     SET
+       plan=$1,
+       plan_expires_at=$2,
+       updated_at=NOW()
+     WHERE email=$3
+     RETURNING id,email,plan,plan_expires_at`,
+    [plan,expiry,email]
+  );
+
+  await query(
+    `INSERT INTO yks2_subscription_events (
+      user_id,
+      package_key,
+      previous_plan,
+      new_plan,
+      previous_expires_at,
+      starts_at,
+      expires_at,
+      activation_type
+    )
+    VALUES (
+      $1,
+      $2,
+      $3,
+      $4,
+      $5,
+      NOW(),
+      $6,
+      'admin_override'
+    )`,
+    [
+      previous.id,
+      `admin_${plan}`,
+      previous.plan||'none',
+      plan,
+      previous.plan_expires_at||null,
+      expiry
+    ]
+  );
+
+  return res.status(200).json({
+    user:r.rows[0]
+  });
+}
 
   return res.status(400).json({error:'Geçersiz admin işlemi.'});
 }
