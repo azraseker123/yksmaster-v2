@@ -140,17 +140,319 @@ async function renderToday(){
 }
 
 async function renderCurriculum(){
-  await ensureCurriculum(true);let exam='TYT';
+  await ensureCurriculum(true);
+  let exam='TYT';
+  let openSubject='';
+
   const draw=()=>{
-    const pm=progressMap(),subjects=state.curriculum[exam]||{};
-    const overall=Object.entries(subjects).reduce((acc,[subject,topics])=>{const done=topics.filter(t=>pm.get(`${exam}|${subject}|${t.id}`)?.completed).length;acc.done+=done;acc.total+=topics.length;return acc;},{done:0,total:0});
-    root.innerHTML=`<div class="section-title"><div><span class="eyebrow">RESMÎ 2026 KAPSAMI</span><h1>${exam} müfredatı</h1><p>${esc(state.curriculum.meta?.note||'')}</p></div><div class="tabs"><button data-exam="TYT" class="${exam==='TYT'?'active':''}">TYT</button><button data-exam="AYT" class="${exam==='AYT'?'active':''}">AYT</button></div></div>
-      <div class="panel" style="margin-bottom:14px"><div class="progress-meta"><span>${exam} genel ilerleme</span><strong>%${overall.total?Math.round(overall.done/overall.total*100):0}</strong></div>${progressBar(overall.total?overall.done/overall.total*100:0)}</div>
-      <div class="subject-grid">${Object.entries(subjects).map(([subject,topics])=>{const done=topics.filter(t=>pm.get(`${exam}|${subject}|${t.id}`)?.completed).length,pct=topics.length?Math.round(done/topics.length*100):0;return `<details class="subject-card"><summary><div class="subject-summary"><strong>${esc(subject)}</strong>${progressBar(pct)}</div><span class="percent-chip">%${pct}</span></summary><div class="topic-list">${topics.map(t=>{const p=pm.get(`${exam}|${subject}|${t.id}`)||{};return `<div class="topic-row"><label><input type="checkbox" data-topic-check data-exam="${exam}" data-subject="${esc(subject)}" data-topic="${esc(t.id)}" ${p.completed?'checked':''}><span>${esc(t.name)}</span></label><button class="review-btn ${p.review_needed?'active':''}" title="Tekrar listesine ekle" data-review data-exam="${exam}" data-subject="${esc(subject)}" data-topic="${esc(t.id)}">↻</button></div>`}).join('')}</div></details>`}).join('')}</div>`;
-    $$('[data-exam]',root).forEach(b=>b.onclick=()=>{exam=b.dataset.exam;draw();});
-    $$('[data-topic-check]',root).forEach(ch=>ch.onchange=async()=>{const key=`${ch.dataset.exam}|${ch.dataset.subject}|${ch.dataset.topic}`,old=progressMap().get(key)||{};try{await api('/api/curriculum',{method:'POST',body:JSON.stringify({exam:ch.dataset.exam,subject:ch.dataset.subject,topicId:ch.dataset.topic,completed:ch.checked,reviewNeeded:Boolean(old.review_needed)})});await ensureCurriculum(true);draw();}catch(e){ch.checked=!ch.checked;toast(e.message,'error');}});
-    $$('[data-review]',root).forEach(b=>b.onclick=async()=>{const key=`${b.dataset.exam}|${b.dataset.subject}|${b.dataset.topic}`,old=progressMap().get(key)||{};try{await api('/api/curriculum',{method:'POST',body:JSON.stringify({exam:b.dataset.exam,subject:b.dataset.subject,topicId:b.dataset.topic,completed:Boolean(old.completed),reviewNeeded:!old.review_needed})});await ensureCurriculum(true);draw();toast(!old.review_needed?'Tekrar listesine eklendi.':'Tekrar listesinden çıkarıldı.');}catch(e){toast(e.message,'error');}});
-  };draw();
+    const pm=progressMap();
+    const subjects=state.curriculum[exam]||{};
+
+    const overall=Object.entries(subjects).reduce(
+      (acc,[subject,topics])=>{
+        const done=topics.filter(
+          t=>pm.get(`${exam}|${subject}|${t.id}`)?.completed
+        ).length;
+
+        acc.done+=done;
+        acc.total+=topics.length;
+        return acc;
+      },
+      {done:0,total:0}
+    );
+
+    root.innerHTML=`
+      <div class="section-title">
+        <div>
+          <span class="eyebrow">RESMÎ 2026 KAPSAMI</span>
+          <h1>${exam} müfredatı</h1>
+          <p>${esc(state.curriculum.meta?.note||'')}</p>
+        </div>
+
+        <div class="tabs">
+          <button
+            data-exam="TYT"
+            class="${exam==='TYT'?'active':''}"
+          >
+            TYT
+          </button>
+
+          <button
+            data-exam="AYT"
+            class="${exam==='AYT'?'active':''}"
+          >
+            AYT
+          </button>
+        </div>
+      </div>
+
+      <div
+        class="panel"
+        style="margin-bottom:14px"
+      >
+        <div class="progress-meta">
+          <span>${exam} genel ilerleme</span>
+
+          <strong>
+            %${
+              overall.total
+                ? Math.round(
+                    overall.done /
+                    overall.total *
+                    100
+                  )
+                : 0
+            }
+          </strong>
+        </div>
+
+        ${
+          progressBar(
+            overall.total
+              ? overall.done /
+                overall.total *
+                100
+              : 0
+          )
+        }
+      </div>
+
+      <div class="subject-grid">
+        ${
+          Object.entries(subjects)
+            .map(([subject,topics])=>{
+              const done=topics.filter(
+                t=>pm.get(
+                  `${exam}|${subject}|${t.id}`
+                )?.completed
+              ).length;
+
+              const pct=topics.length
+                ? Math.round(
+                    done /
+                    topics.length *
+                    100
+                  )
+                : 0;
+
+              return `
+                <details
+                  class="subject-card"
+                  data-subject-card="${esc(subject)}"
+                  ${
+                    openSubject===subject
+                      ? 'open'
+                      : ''
+                  }
+                >
+                  <summary>
+                    <div class="subject-summary">
+                      <strong>
+                        ${esc(subject)}
+                      </strong>
+
+                      ${progressBar(pct)}
+                    </div>
+
+                    <span class="percent-chip">
+                      %${pct}
+                    </span>
+                  </summary>
+
+                  <div class="topic-list">
+                    ${
+                      topics
+                        .map(t=>{
+                          const p=
+                            pm.get(
+                              `${exam}|${subject}|${t.id}`
+                            )||{};
+
+                          return `
+                            <div class="topic-row">
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  data-topic-check
+                                  data-exam="${exam}"
+                                  data-subject="${esc(subject)}"
+                                  data-topic="${esc(t.id)}"
+                                  ${
+                                    p.completed
+                                      ? 'checked'
+                                      : ''
+                                  }
+                                >
+
+                                <span>
+                                  ${esc(t.name)}
+                                </span>
+                              </label>
+
+                              <button
+                                class="review-btn ${
+                                  p.review_needed
+                                    ? 'active'
+                                    : ''
+                                }"
+                                title="Tekrar listesine ekle"
+                                data-review
+                                data-exam="${exam}"
+                                data-subject="${esc(subject)}"
+                                data-topic="${esc(t.id)}"
+                              >
+                                ↻
+                              </button>
+                            </div>
+                          `;
+                        })
+                        .join('')
+                    }
+                  </div>
+                </details>
+              `;
+            })
+            .join('')
+        }
+      </div>
+    `;
+
+    $$('[data-subject-card]',root)
+      .forEach(card=>{
+        card.addEventListener(
+          'toggle',
+          ()=>{
+            if(card.open){
+              openSubject=
+                card.dataset.subjectCard;
+            }else if(
+              openSubject===
+              card.dataset.subjectCard
+            ){
+              openSubject='';
+            }
+          }
+        );
+      });
+
+    $$('[data-exam]',root)
+      .forEach(b=>{
+        b.onclick=()=>{
+          exam=b.dataset.exam;
+          openSubject='';
+          draw();
+        };
+      });
+
+    $$('[data-topic-check]',root)
+      .forEach(ch=>{
+        ch.onchange=async()=>{
+          const key=
+            `${ch.dataset.exam}|`+
+            `${ch.dataset.subject}|`+
+            `${ch.dataset.topic}`;
+
+          const old=
+            progressMap().get(key)||{};
+
+          openSubject=
+            ch.dataset.subject;
+
+          try{
+            await api(
+              '/api/curriculum',
+              {
+                method:'POST',
+                body:JSON.stringify({
+                  exam:
+                    ch.dataset.exam,
+                  subject:
+                    ch.dataset.subject,
+                  topicId:
+                    ch.dataset.topic,
+                  completed:
+                    ch.checked,
+                  reviewNeeded:
+                    Boolean(
+                      old.review_needed
+                    )
+                })
+              }
+            );
+
+            await ensureCurriculum(true);
+
+            draw();
+
+          }catch(e){
+            ch.checked=
+              !ch.checked;
+
+            toast(
+              e.message,
+              'error'
+            );
+          }
+        };
+      });
+
+    $$('[data-review]',root)
+      .forEach(b=>{
+        b.onclick=async()=>{
+          const key=
+            `${b.dataset.exam}|`+
+            `${b.dataset.subject}|`+
+            `${b.dataset.topic}`;
+
+          const old=
+            progressMap().get(key)||{};
+
+          openSubject=
+            b.dataset.subject;
+
+          try{
+            await api(
+              '/api/curriculum',
+              {
+                method:'POST',
+                body:JSON.stringify({
+                  exam:
+                    b.dataset.exam,
+                  subject:
+                    b.dataset.subject,
+                  topicId:
+                    b.dataset.topic,
+                  completed:
+                    Boolean(
+                      old.completed
+                    ),
+                  reviewNeeded:
+                    !old.review_needed
+                })
+              }
+            );
+
+            await ensureCurriculum(true);
+
+            draw();
+
+            toast(
+              !old.review_needed
+                ? 'Tekrar listesine eklendi.'
+                : 'Tekrar listesinden çıkarıldı.'
+            );
+
+          }catch(e){
+            toast(
+              e.message,
+              'error'
+            );
+          }
+        };
+      });
+  };
+
+  draw();
 }
 
 async function renderPlanner(){
