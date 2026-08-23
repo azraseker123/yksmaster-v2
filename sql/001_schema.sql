@@ -171,7 +171,28 @@ CREATE TABLE IF NOT EXISTS yks2_license_codes (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_yks2_license_codes_code ON yks2_license_codes(code);
+CREATE TABLE IF NOT EXISTS yks2_subscription_events (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES yks2_users(id) ON DELETE CASCADE,
+  license_code_id BIGINT REFERENCES yks2_license_codes(id) ON DELETE SET NULL,
+  source_order_id TEXT,
+  package_key TEXT NOT NULL,
+  previous_plan TEXT NOT NULL CHECK (previous_plan IN ('none','basic','ai_pro')),
+  new_plan TEXT NOT NULL CHECK (new_plan IN ('none','basic','ai_pro')),
+  previous_expires_at TIMESTAMPTZ,
+  starts_at TIMESTAMPTZ NOT NULL,
+  expires_at TIMESTAMPTZ,
+  activation_type TEXT NOT NULL CHECK (
+    activation_type IN ('new','renewal','upgrade','admin_override')
+  ),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
+CREATE INDEX IF NOT EXISTS idx_yks2_subscription_events_user_created
+ON yks2_subscription_events(user_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_yks2_subscription_events_order
+ON yks2_subscription_events(source_order_id);
 CREATE TABLE IF NOT EXISTS yks2_duels (
   id BIGSERIAL PRIMARY KEY,
   invite_code TEXT NOT NULL UNIQUE,
