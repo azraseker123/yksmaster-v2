@@ -1,7 +1,11 @@
 import { requireUser } from '../lib/auth.js';
 import { onlyMethods,text,int } from '../lib/http.js';
 import { query } from '../lib/db.js';
-import { geminiText,GEMINI_MODEL } from '../lib/gemini.js';
+import {
+  geminiText,
+  GEMINI_MODEL,
+  GEMINI_FAST_MODEL
+} from '../lib/gemini.js';
 import { getSubjectPerformance,getQuestionTotals,getStudySummary } from '../lib/stats.js';
 import { getStreak } from '../lib/activity.js';
 import { getCurriculumForField } from '../data/curriculum.js';
