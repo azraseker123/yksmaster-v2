@@ -1831,9 +1831,452 @@ async function renderFocus(){
 }
 
 async function renderSleep(){
-  const d=await api('/api/sleep');root.innerHTML=`<div class="section-title"><div><span class="eyebrow">DÜZEN</span><h1>Uyku Takibi</h1><p>Uyku verini kendin kaydet; süre otomatik hesaplanır.</p></div></div><div class="form-panel"><article class="panel"><form id="sleepForm" class="compact-form"><label>Tarih<input name="sleepDate" type="date" value="${todayISO()}" required></label><div class="field-row"><label>Yatış<input name="bedtime" type="time" required></label><label>Kalkış<input name="wakeTime" type="time" required></label></div><label>Uyku kalitesi<select name="quality"><option value="">Belirtme</option><option value="1">1 · Çok kötü</option><option value="2">2</option><option value="3">3 · Orta</option><option value="4">4</option><option value="5">5 · Çok iyi</option></select></label><button class="btn primary" type="submit">Uyku Kaydını Ekle</button></form></article><article class="panel"><div class="list">${(d.items||[]).length?d.items.map(x=>`<div class="list-row"><div class="grow"><strong>${Math.floor(x.duration_minutes/60)} sa ${x.duration_minutes%60} dk</strong><small>${fmtDate(x.sleep_date)} · ${String(x.bedtime).slice(0,5)} → ${String(x.wake_time).slice(0,5)}${x.quality?' · kalite '+x.quality+'/5':''}</small></div><button class="btn danger small" data-sleep-delete="${x.id}">Sil</button></div>`).join(''):empty('Uyku kaydı yok','İlk gece kaydını ekle.','☾')}</div></article></div>`;
-  $('#sleepForm',root).onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.querySelector('button[type=submit]');loading(b,true);try{const f=formDataObject(e.currentTarget);await api('/api/sleep',{method:'POST',body:JSON.stringify({...f,quality:f.quality?Number(f.quality):null})});toast('Uyku kaydedildi.');renderSleep();}catch(err){toast(err.message,'error');}finally{loading(b,false,'Uyku Kaydını Ekle');}};
-  $$('[data-sleep-delete]',root).forEach(b=>b.onclick=async()=>{if(!confirm('Uyku kaydını silmek istiyor musun?'))return;await api(`/api/sleep?id=${b.dataset.sleepDelete}`,{method:'DELETE'});renderSleep();});
+  const d=await api('/api/sleep');
+  const items=d.items||[];
+
+  const chartRows=items
+    .map(x=>({
+      ...x,
+      duration_hours:
+        Number(x.duration_minutes||0)/60
+    }))
+    .sort(
+      (a,b)=>
+        new Date(a.sleep_date)-
+        new Date(b.sleep_date)
+    );
+
+  const qualityRows=chartRows
+    .filter(
+      x=>
+        x.quality!==null &&
+        x.quality!==undefined &&
+        x.quality!==''
+    )
+    .map(x=>({
+      ...x,
+      quality_value:Number(x.quality)
+    }));
+
+  const daysAgo=date=>{
+    const today=new Date(
+      `${todayISO()}T12:00:00`
+    );
+
+    const target=new Date(
+      `${String(date).slice(0,10)}T12:00:00`
+    );
+
+    return Math.floor(
+      (today-target)/86400000
+    );
+  };
+
+  const averageForDays=days=>{
+    const rows=chartRows.filter(x=>{
+      const diff=daysAgo(x.sleep_date);
+
+      return diff>=0 && diff<days;
+    });
+
+    if(!rows.length){
+      return null;
+    }
+
+    return (
+      rows.reduce(
+        (sum,x)=>
+          sum+Number(x.duration_minutes||0),
+        0
+      ) /
+      rows.length
+    );
+  };
+
+  const avg7=averageForDays(7);
+  const avg30=averageForDays(30);
+
+  const formatDuration=minutes=>{
+    if(
+      minutes===null ||
+      minutes===undefined
+    ){
+      return '—';
+    }
+
+    const total=Math.round(minutes);
+
+    return `${Math.floor(total/60)} sa ${total%60} dk`;
+  };
+
+  const qualityValues=qualityRows.map(
+    x=>Number(x.quality_value)
+  );
+
+  const avgQuality=
+    qualityValues.length
+      ? qualityValues.reduce(
+          (a,b)=>a+b,
+          0
+        )/qualityValues.length
+      : null;
+
+  root.innerHTML=`
+    <div class="section-title">
+      <div>
+        <span class="eyebrow">
+          DÜZEN
+        </span>
+
+        <h1>Uyku Takibi</h1>
+
+        <p>
+          Uyku verini kendin kaydet;
+          süre otomatik hesaplanır.
+        </p>
+      </div>
+    </div>
+
+    <article class="panel trend-panel">
+
+      <div class="trend-header">
+
+        <div>
+          <span class="eyebrow">
+            UYKU GELİŞİMİ
+          </span>
+
+          <h3>Uyku Süresi</h3>
+        </div>
+
+        <div class="trend-change">
+          <strong>
+            ${
+              chartRows.length
+                ? formatDuration(
+                    chartRows[
+                      chartRows.length-1
+                    ].duration_minutes
+                  )
+                : '—'
+            }
+          </strong>
+
+          <small>
+            Son kayıt
+          </small>
+        </div>
+
+      </div>
+
+      ${lineChart(chartRows,{
+        valueKey:'duration_hours',
+        dateKey:'sleep_date',
+        emptyText:'Uyku grafiği için en az 2 gece kaydı gerekli.',
+        suffix:' sa'
+      })}
+
+      <div class="chart-summary">
+
+        <div class="chart-summary-box">
+          <small>
+            Son 7 gün ortalaması
+          </small>
+
+          <strong>
+            ${formatDuration(avg7)}
+          </strong>
+        </div>
+
+        <div class="chart-summary-box">
+          <small>
+            Son 30 gün ortalaması
+          </small>
+
+          <strong>
+            ${formatDuration(avg30)}
+          </strong>
+        </div>
+
+        <div class="chart-summary-box">
+          <small>
+            Ortalama kalite
+          </small>
+
+          <strong>
+            ${
+              avgQuality!==null
+                ? `${avgQuality.toFixed(1)} / 5`
+                : '—'
+            }
+          </strong>
+        </div>
+
+      </div>
+
+      <div
+        class="panel-head"
+        style="margin-top:28px"
+      >
+        <div>
+          <span class="eyebrow">
+            UYKU KALİTESİ
+          </span>
+
+          <h3>Kalite Trendi</h3>
+        </div>
+      </div>
+
+      ${lineChart(qualityRows,{
+        valueKey:'quality_value',
+        dateKey:'sleep_date',
+        emptyText:'Kalite grafiği için en az 2 kalite kaydı gerekli.',
+        suffix:'/5'
+      })}
+
+    </article>
+
+    <div
+      class="form-panel"
+      style="margin-top:15px"
+    >
+
+      <article class="panel">
+
+        <form
+          id="sleepForm"
+          class="compact-form"
+        >
+
+          <label>
+            Tarih
+
+            <input
+              name="sleepDate"
+              type="date"
+              value="${todayISO()}"
+              required
+            >
+          </label>
+
+          <div class="field-row">
+
+            <label>
+              Yatış
+
+              <input
+                name="bedtime"
+                type="time"
+                required
+              >
+            </label>
+
+            <label>
+              Kalkış
+
+              <input
+                name="wakeTime"
+                type="time"
+                required
+              >
+            </label>
+
+          </div>
+
+          <label>
+            Uyku kalitesi
+
+            <select name="quality">
+
+              <option value="">
+                Belirtme
+              </option>
+
+              <option value="1">
+                1 · Çok kötü
+              </option>
+
+              <option value="2">
+                2
+              </option>
+
+              <option value="3">
+                3 · Orta
+              </option>
+
+              <option value="4">
+                4
+              </option>
+
+              <option value="5">
+                5 · Çok iyi
+              </option>
+
+            </select>
+          </label>
+
+          <button
+            class="btn primary"
+            type="submit"
+          >
+            Uyku Kaydını Ekle
+          </button>
+
+        </form>
+
+      </article>
+
+      <article class="panel">
+
+        <div class="panel-head">
+          <div>
+            <span class="eyebrow">
+              GEÇMİŞ
+            </span>
+
+            <h3>Uyku kayıtları</h3>
+          </div>
+        </div>
+
+        <div class="list">
+
+          ${
+            items.length
+              ? items.map(x=>`
+                <div class="list-row">
+
+                  <div class="grow">
+
+                    <strong>
+                      ${Math.floor(
+                        Number(x.duration_minutes)/60
+                      )} sa
+                      ${
+                        Number(x.duration_minutes)%60
+                      } dk
+                    </strong>
+
+                    <small>
+                      ${fmtDate(x.sleep_date)}
+                      ·
+                      ${String(x.bedtime).slice(0,5)}
+                      →
+                      ${String(x.wake_time).slice(0,5)}
+
+                      ${
+                        x.quality
+                          ? ` · kalite ${x.quality}/5`
+                          : ''
+                      }
+                    </small>
+
+                  </div>
+
+                  <button
+                    class="btn danger small"
+                    data-sleep-delete="${x.id}"
+                  >
+                    Sil
+                  </button>
+
+                </div>
+              `).join('')
+
+              : empty(
+                  'Uyku kaydı yok',
+                  'İlk gece kaydını ekle.',
+                  '☾'
+                )
+          }
+
+        </div>
+
+      </article>
+
+    </div>
+  `;
+
+  $('#sleepForm',root)
+    .onsubmit=async e=>{
+
+      e.preventDefault();
+
+      const b=
+        e.currentTarget
+          .querySelector(
+            'button[type=submit]'
+          );
+
+      loading(b,true);
+
+      try{
+
+        const f=
+          formDataObject(
+            e.currentTarget
+          );
+
+        await api(
+          '/api/sleep',
+          {
+            method:'POST',
+            body:JSON.stringify({
+              ...f,
+              quality:
+                f.quality
+                  ? Number(f.quality)
+                  : null
+            })
+          }
+        );
+
+        toast(
+          'Uyku kaydedildi.'
+        );
+
+        renderSleep();
+
+      }catch(err){
+
+        toast(
+          err.message,
+          'error'
+        );
+
+      }finally{
+
+        loading(
+          b,
+          false,
+          'Uyku Kaydını Ekle'
+        );
+      }
+    };
+
+  $$('[data-sleep-delete]',root)
+    .forEach(b=>{
+
+      b.onclick=async()=>{
+
+        if(
+          !confirm(
+            'Uyku kaydını silmek istiyor musun?'
+          )
+        ){
+          return;
+        }
+
+        await api(
+          `/api/sleep?id=${b.dataset.sleepDelete}`,
+          {
+            method:'DELETE'
+          }
+        );
+
+        renderSleep();
+      };
+
+    });
 }
 
 async function renderBadges(){
