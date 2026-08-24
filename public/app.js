@@ -317,23 +317,16 @@ async function renderCurriculum(){
       </div>
     `;
 
-    $$('[data-subject-card]',root)
-      .forEach(card=>{
-        card.addEventListener(
-          'toggle',
-          ()=>{
-            if(card.open){
-              openSubject=
-                card.dataset.subjectCard;
-            }else if(
-              openSubject===
-              card.dataset.subjectCard
-            ){
-              openSubject='';
-            }
-          }
-        );
-      });
+   $$('[data-subject-card] > summary', root)
+  .forEach(summary => {
+    summary.addEventListener('click', () => {
+      const card = summary.closest('[data-subject-card]');
+
+      openSubject = card.open
+        ? ''
+        : card.dataset.subjectCard;
+    });
+  });
 
     $$('[data-exam]',root)
       .forEach(b=>{
