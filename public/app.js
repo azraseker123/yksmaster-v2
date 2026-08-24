@@ -1086,16 +1086,667 @@ async function renderExams(){
 }
 
 async function renderQuestions(){
-  await ensureCurriculum();const [d,res]=await Promise.all([api('/api/questions'),api('/api/resources')]);state.resources=res.items||[];
-  root.innerHTML=`<div class="section-title"><div><span class="eyebrow">DOĞRU · YANLIŞ · BOŞ</span><h1>Soru Takibi</h1><p>Sayısal, Eşit Ağırlık ve Sözel için ders listeleri alanına göre otomatik gelir. Kaynak seçersen yalnız aynı TYT/AYT dersiyle eşleşen kaynaklar gösterilir.</p></div></div><div class="form-panel"><article class="panel"><form id="questionForm" class="compact-form"><div class="field-row"><label>Sınav<select id="qExam" name="exam"><option>TYT</option><option>AYT</option></select></label><label>Tarih<input name="logDate" type="date" value="${todayISO()}"></label></div><label>Ders<select id="qSubject" name="subject" required></select></label><label>Konu<select id="qTopic" name="topicId"></select></label><label>Kaynak<select id="qSource" name="sourceId"><option value="">Kaynak seçmeden kaydet</option></select></label><div class="triple"><label>Doğru<input name="correct" type="number" min="0" value="0"></label><label>Yanlış<input name="wrong" type="number" min="0" value="0"></label><label>Boş<input name="blank" type="number" min="0" value="0"></label></div><button class="btn primary" type="submit">Soru Kaydını Ekle</button></form></article>
-  <article class="panel"><div class="panel-head"><div><span class="eyebrow">SON KAYITLAR</span><h3>Çalışma geçmişi</h3></div></div><div class="table-wrap">${(d.items||[]).length?`<table class="data-table"><thead><tr><th>Tarih</th><th>Sınav</th><th>Ders / Konu</th><th>D</th><th>Y</th><th>B</th><th>Kaynak</th><th></th></tr></thead><tbody>${d.items.map(x=>`<tr><td>${fmtDate(x.log_date)}</td><td><span class="tag">${esc(x.exam)}</span></td><td><strong>${esc(x.subject)}</strong><br><small>${esc(x.topic||'—')}</small></td><td>${x.correct_count}</td><td>${x.wrong_count}</td><td>${x.blank_count}</td><td>${esc(x.source_name||'—')}</td><td><button class="btn danger small" data-q-delete="${x.id}">Sil</button></td></tr>`).join('')}</tbody></table>`:empty('Henüz soru kaydı yok','İlk soru çalışmanı ekle.','◎')}</div></article></div>`;
-  const qExam=$('#qExam',root),qSubject=$('#qSubject',root),qTopic=$('#qTopic',root),qSource=$('#qSource',root);
-  const syncSources=()=>{const chosen=qSource.value;qSource.innerHTML='<option value="">Kaynak seçmeden kaydet</option>'+state.resources.filter(x=>x.exam===qExam.value&&x.subject===qSubject.value).map(x=>`<option value="${x.id}" ${String(x.id)===chosen?'selected':''}>${esc(x.name)}</option>`).join('');};
-  bindExamSubjectTopic(qExam,qSubject,qTopic);qExam.addEventListener('change',syncSources);qSubject.addEventListener('change',syncSources);syncSources();
-  $('#questionForm',root).onsubmit=async e=>{e.preventDefault();const f=formDataObject(e.currentTarget),topicObj=(state.curriculum[f.exam]?.[f.subject]||[]).find(t=>t.id===f.topicId);const payload={...f,topic:topicObj?.name||'',correct:Number(f.correct||0),wrong:Number(f.wrong||0),blank:Number(f.blank||0),sourceId:f.sourceId?Number(f.sourceId):null};const b=e.currentTarget.querySelector('button[type=submit]');loading(b,true);try{await api('/api/questions',{method:'POST',body:JSON.stringify(payload)});toast('Soru kaydı eklendi.');renderQuestions();}catch(err){toast(err.message,'error');}finally{loading(b,false,'Soru Kaydını Ekle');}};
-  $$('[data-q-delete]',root).forEach(b=>b.onclick=async()=>{if(!confirm('Bu soru kaydını silmek istiyor musun?'))return;await api(`/api/questions?id=${b.dataset.qDelete}`,{method:'DELETE'});renderQuestions();});
-}
+  await ensureCurriculum();
 
+  const [d,res]=await Promise.all([
+    api('/api/questions'),
+    api('/api/resources')
+  ]);
+
+  const items=d.items||[];
+  state.resources=res.items||[];
+
+  let chartExam='ALL';
+  let chartSubject='ALL';
+
+  const subjects=[
+    ...new Set(
+      items
+        .map(x=>x.subject)
+        .filter(Boolean)
+    )
+  ].sort();
+
+  const getChartRows=()=>{
+    const filtered=items.filter(x=>{
+      const examOk=
+        chartExam==='ALL' ||
+        x.exam===chartExam;
+
+      const subjectOk=
+        chartSubject==='ALL' ||
+        x.subject===chartSubject;
+
+      return examOk && subjectOk;
+    });
+
+    const byDate={};
+
+    filtered.forEach(x=>{
+      const date=String(x.log_date).slice(0,10);
+
+      if(!byDate[date]){
+        byDate[date]={
+          log_date:date,
+          correct:0,
+          wrong:0,
+          blank:0,
+          total:0,
+          successRate:0
+        };
+      }
+
+      const correct=Number(x.correct_count||0);
+      const wrong=Number(x.wrong_count||0);
+      const blank=Number(x.blank_count||0);
+
+      byDate[date].correct+=correct;
+      byDate[date].wrong+=wrong;
+      byDate[date].blank+=blank;
+      byDate[date].total+=correct+wrong+blank;
+    });
+
+    return Object.values(byDate)
+      .map(x=>{
+        const answered=x.correct+x.wrong;
+
+        x.successRate=
+          answered>0
+            ? (x.correct/answered)*100
+            : 0;
+
+        return x;
+      })
+      .sort(
+        (a,b)=>
+          new Date(a.log_date)-
+          new Date(b.log_date)
+      );
+  };
+
+  const chartHTML=()=>{
+    const rows=getChartRows();
+
+    const totals=rows.reduce(
+      (acc,x)=>{
+        acc.correct+=x.correct;
+        acc.wrong+=x.wrong;
+        acc.blank+=x.blank;
+        acc.total+=x.total;
+        return acc;
+      },
+      {
+        correct:0,
+        wrong:0,
+        blank:0,
+        total:0
+      }
+    );
+
+    const answered=
+      totals.correct+
+      totals.wrong;
+
+    const success=
+      answered>0
+        ? (totals.correct/answered)*100
+        : 0;
+
+    return `
+      <article class="panel trend-panel">
+
+        <div class="trend-header">
+          <div>
+            <span class="eyebrow">
+              SORU PERFORMANSI
+            </span>
+
+            <h3>Çalışma Grafikleri</h3>
+          </div>
+
+          <div class="trend-change">
+            <strong>
+              ${totals.total} soru
+            </strong>
+
+            <small>
+              %${success.toFixed(1)} başarı
+            </small>
+          </div>
+        </div>
+
+        <div
+          class="tabs"
+          style="margin-bottom:12px"
+        >
+          <button
+            class="tab ${chartExam==='ALL'?'active':''}"
+            data-q-chart-exam="ALL"
+          >
+            Tümü
+          </button>
+
+          <button
+            class="tab ${chartExam==='TYT'?'active':''}"
+            data-q-chart-exam="TYT"
+          >
+            TYT
+          </button>
+
+          <button
+            class="tab ${chartExam==='AYT'?'active':''}"
+            data-q-chart-exam="AYT"
+          >
+            AYT
+          </button>
+        </div>
+
+        <label style="margin-bottom:18px">
+          Grafik dersi
+
+          <select id="qChartSubject">
+            <option value="ALL">
+              Tüm dersler
+            </option>
+
+            ${subjects.map(s=>`
+              <option
+                value="${esc(s)}"
+                ${chartSubject===s?'selected':''}
+              >
+                ${esc(s)}
+              </option>
+            `).join('')}
+          </select>
+        </label>
+
+        <div class="panel-head">
+          <div>
+            <span class="eyebrow">
+              GÜNLÜK SORU
+            </span>
+
+            <h3>Çözülen Soru Sayısı</h3>
+          </div>
+        </div>
+
+        ${lineChart(rows,{
+          valueKey:'total',
+          dateKey:'log_date',
+          emptyText:'Grafik için en az 2 farklı günde soru kaydı gerekli.'
+        })}
+
+        <div
+          class="panel-head"
+          style="margin-top:25px"
+        >
+          <div>
+            <span class="eyebrow">
+              DOĞRULUK
+            </span>
+
+            <h3>Başarı Oranı</h3>
+          </div>
+        </div>
+
+        ${lineChart(rows,{
+          valueKey:'successRate',
+          dateKey:'log_date',
+          emptyText:'Başarı grafiği için en az 2 farklı günde soru kaydı gerekli.',
+          suffix:'%'
+        })}
+
+        <div class="chart-summary">
+
+          <div class="chart-summary-box">
+            <small>Doğru</small>
+            <strong>${totals.correct}</strong>
+          </div>
+
+          <div class="chart-summary-box">
+            <small>Yanlış</small>
+            <strong>${totals.wrong}</strong>
+          </div>
+
+          <div class="chart-summary-box">
+            <small>Boş</small>
+            <strong>${totals.blank}</strong>
+          </div>
+
+        </div>
+
+      </article>
+    `;
+  };
+
+  root.innerHTML=`
+    <div class="section-title">
+      <div>
+        <span class="eyebrow">
+          DOĞRU · YANLIŞ · BOŞ
+        </span>
+
+        <h1>Soru Takibi</h1>
+
+        <p>
+          Sayısal, Eşit Ağırlık ve Sözel için
+          ders listeleri alanına göre otomatik gelir.
+          Kaynak seçersen yalnız aynı TYT/AYT
+          dersiyle eşleşen kaynaklar gösterilir.
+        </p>
+      </div>
+    </div>
+
+    <div id="questionTrendPanel">
+      ${chartHTML()}
+    </div>
+
+    <div
+      class="form-panel"
+      style="margin-top:15px"
+    >
+
+      <article class="panel">
+
+        <form
+          id="questionForm"
+          class="compact-form"
+        >
+
+          <div class="field-row">
+
+            <label>
+              Sınav
+
+              <select
+                id="qExam"
+                name="exam"
+              >
+                <option>TYT</option>
+                <option>AYT</option>
+              </select>
+            </label>
+
+            <label>
+              Tarih
+
+              <input
+                name="logDate"
+                type="date"
+                value="${todayISO()}"
+              >
+            </label>
+
+          </div>
+
+          <label>
+            Ders
+            <select
+              id="qSubject"
+              name="subject"
+              required
+            ></select>
+          </label>
+
+          <label>
+            Konu
+            <select
+              id="qTopic"
+              name="topicId"
+            ></select>
+          </label>
+
+          <label>
+            Kaynak
+
+            <select
+              id="qSource"
+              name="sourceId"
+            >
+              <option value="">
+                Kaynak seçmeden kaydet
+              </option>
+            </select>
+          </label>
+
+          <div class="triple">
+
+            <label>
+              Doğru
+              <input
+                name="correct"
+                type="number"
+                min="0"
+                value="0"
+              >
+            </label>
+
+            <label>
+              Yanlış
+              <input
+                name="wrong"
+                type="number"
+                min="0"
+                value="0"
+              >
+            </label>
+
+            <label>
+              Boş
+              <input
+                name="blank"
+                type="number"
+                min="0"
+                value="0"
+              >
+            </label>
+
+          </div>
+
+          <button
+            class="btn primary"
+            type="submit"
+          >
+            Soru Kaydını Ekle
+          </button>
+
+        </form>
+
+      </article>
+
+      <article class="panel">
+
+        <div class="panel-head">
+          <div>
+            <span class="eyebrow">
+              SON KAYITLAR
+            </span>
+
+            <h3>Çalışma geçmişi</h3>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+
+          ${
+            items.length
+              ? `
+                <table class="data-table">
+
+                  <thead>
+                    <tr>
+                      <th>Tarih</th>
+                      <th>Sınav</th>
+                      <th>Ders / Konu</th>
+                      <th>D</th>
+                      <th>Y</th>
+                      <th>B</th>
+                      <th>Kaynak</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+
+                    ${items.map(x=>`
+                      <tr>
+
+                        <td>
+                          ${fmtDate(x.log_date)}
+                        </td>
+
+                        <td>
+                          <span class="tag">
+                            ${esc(x.exam)}
+                          </span>
+                        </td>
+
+                        <td>
+                          <strong>
+                            ${esc(x.subject)}
+                          </strong>
+
+                          <br>
+
+                          <small>
+                            ${esc(x.topic||'—')}
+                          </small>
+                        </td>
+
+                        <td>
+                          ${x.correct_count}
+                        </td>
+
+                        <td>
+                          ${x.wrong_count}
+                        </td>
+
+                        <td>
+                          ${x.blank_count}
+                        </td>
+
+                        <td>
+                          ${esc(x.source_name||'—')}
+                        </td>
+
+                        <td>
+                          <button
+                            class="btn danger small"
+                            data-q-delete="${x.id}"
+                          >
+                            Sil
+                          </button>
+                        </td>
+
+                      </tr>
+                    `).join('')}
+
+                  </tbody>
+
+                </table>
+              `
+              : empty(
+                  'Henüz soru kaydı yok',
+                  'İlk soru çalışmanı ekle.',
+                  '◎'
+                )
+          }
+
+        </div>
+
+      </article>
+
+    </div>
+  `;
+
+  const bindQuestionChart=()=>{
+
+    $$('[data-q-chart-exam]',root)
+      .forEach(button=>{
+
+        button.onclick=()=>{
+          chartExam=
+            button.dataset.qChartExam;
+
+          $('#questionTrendPanel',root)
+            .innerHTML=chartHTML();
+
+          bindQuestionChart();
+        };
+
+      });
+
+    const subjectSelect=
+      $('#qChartSubject',root);
+
+    if(subjectSelect){
+      subjectSelect.onchange=()=>{
+        chartSubject=
+          subjectSelect.value;
+
+        $('#questionTrendPanel',root)
+          .innerHTML=chartHTML();
+
+        bindQuestionChart();
+      };
+    }
+  };
+
+  bindQuestionChart();
+
+  const qExam=
+    $('#qExam',root);
+
+  const qSubject=
+    $('#qSubject',root);
+
+  const qTopic=
+    $('#qTopic',root);
+
+  const qSource=
+    $('#qSource',root);
+
+  const syncSources=()=>{
+    const chosen=qSource.value;
+
+    qSource.innerHTML=
+      '<option value="">Kaynak seçmeden kaydet</option>'+
+      state.resources
+        .filter(
+          x=>
+            x.exam===qExam.value &&
+            x.subject===qSubject.value
+        )
+        .map(x=>`
+          <option
+            value="${x.id}"
+            ${
+              String(x.id)===chosen
+                ? 'selected'
+                : ''
+            }
+          >
+            ${esc(x.name)}
+          </option>
+        `)
+        .join('');
+  };
+
+  bindExamSubjectTopic(
+    qExam,
+    qSubject,
+    qTopic
+  );
+
+  qExam.addEventListener(
+    'change',
+    syncSources
+  );
+
+  qSubject.addEventListener(
+    'change',
+    syncSources
+  );
+
+  syncSources();
+
+  $('#questionForm',root)
+    .onsubmit=async e=>{
+
+      e.preventDefault();
+
+      const f=
+        formDataObject(
+          e.currentTarget
+        );
+
+      const topicObj=
+        (
+          state.curriculum[f.exam]?.[f.subject]
+          ||[]
+        ).find(
+          t=>t.id===f.topicId
+        );
+
+      const payload={
+        ...f,
+        topic:topicObj?.name||'',
+        correct:Number(f.correct||0),
+        wrong:Number(f.wrong||0),
+        blank:Number(f.blank||0),
+        sourceId:
+          f.sourceId
+            ? Number(f.sourceId)
+            : null
+      };
+
+      const b=
+        e.currentTarget
+          .querySelector(
+            'button[type=submit]'
+          );
+
+      loading(b,true);
+
+      try{
+
+        await api(
+          '/api/questions',
+          {
+            method:'POST',
+            body:JSON.stringify(payload)
+          }
+        );
+
+        toast(
+          'Soru kaydı eklendi.'
+        );
+
+        renderQuestions();
+
+      }catch(err){
+
+        toast(
+          err.message,
+          'error'
+        );
+
+      }finally{
+
+        loading(
+          b,
+          false,
+          'Soru Kaydını Ekle'
+        );
+
+      }
+    };
+
+  $$('[data-q-delete]',root)
+    .forEach(b=>{
+
+      b.onclick=async()=>{
+
+        if(
+          !confirm(
+            'Bu soru kaydını silmek istiyor musun?'
+          )
+        ){
+          return;
+        }
+
+        await api(
+          `/api/questions?id=${b.dataset.qDelete}`,
+          {
+            method:'DELETE'
+          }
+        );
+
+        renderQuestions();
+      };
+
+    });
+}
 async function renderResources(){
   await ensureCurriculum();const d=await api('/api/resources');state.resources=d.items||[];
   const resourceOptions=state.resources.map(x=>`<option value="${x.id}">${esc(x.name)} · ${esc(x.exam)} ${esc(x.subject)}</option>`).join('');
