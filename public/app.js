@@ -26,6 +26,153 @@ function trackLabel(v){return ({sayisal:'Sayısal',esit_agirlik:'Eşit Ağırlı
 function planLabel(v){return ({none:'Paket Yok',basic:'Temel',ai_pro:'AI Pro'})[v]||v;}
 function percent(n){return Math.max(0,Math.min(100,Number(n)||0));}
 function progressBar(n, green=false){return `<div class="progress${green?' green':''}"><span style="width:${percent(n)}%"></span></div>`;}
+function lineChart(items,{
+  valueKey,
+  dateKey,
+  emptyText='Grafik için en az 2 kayıt gerekli.',
+  suffix=''
+}={}){
+  if(!items || items.length < 2){
+    return `<div class="chart-no-data">${esc(emptyText)}</div>`;
+  }
+
+  const rows=[...items]
+    .filter(x=>Number.isFinite(Number(x[valueKey])))
+    .sort((a,b)=>new Date(a[dateKey])-new Date(b[dateKey]));
+
+  if(rows.length<2){
+    return `<div class="chart-no-data">${esc(emptyText)}</div>`;
+  }
+
+  const values=rows.map(x=>Number(x[valueKey]));
+  const min=Math.min(...values);
+  const max=Math.max(...values);
+  const range=Math.max(1,max-min);
+
+  const W=700;
+  const H=230;
+  const padX=42;
+  const padTop=22;
+  const padBottom=38;
+  const innerW=W-padX*2;
+  const innerH=H-padTop-padBottom;
+
+  const points=rows.map((x,i)=>{
+    const px=padX+(i/(rows.length-1))*innerW;
+    const py=padTop+((max-Number(x[valueKey]))/range)*innerH;
+
+    return {
+      x:px,
+      y:py,
+      value:Number(x[valueKey]),
+      date:x[dateKey]
+    };
+  });
+
+  const polyline=points
+    .map(p=>`${p.x},${p.y}`)
+    .join(' ');
+
+  const area=`${padX},${H-padBottom} ${polyline} ${W-padX},${H-padBottom}`;
+
+  const horizontal=[0,.25,.5,.75,1]
+    .map(r=>{
+      const y=padTop+r*innerH;
+      const value=max-r*range;
+
+      return `
+        <line
+          class="grid"
+          x1="${padX}"
+          y1="${y}"
+          x2="${W-padX}"
+          y2="${y}"
+        />
+        <text
+          x="6"
+          y="${y+4}"
+        >
+          ${Number(value.toFixed(1))}
+        </text>
+      `;
+    })
+    .join('');
+
+  const dots=points.map((p,i)=>{
+    const showLabel=
+      rows.length<=8 ||
+      i===0 ||
+      i===rows.length-1;
+
+    return `
+      <circle
+        class="dot"
+        cx="${p.x}"
+        cy="${p.y}"
+        r="5"
+      />
+      ${
+        showLabel
+          ? `
+            <text
+              class="chart-value"
+              text-anchor="middle"
+              x="${p.x}"
+              y="${p.y-11}"
+            >
+              ${p.value.toFixed(2)}${suffix}
+            </text>
+          `
+          : ''
+      }
+    `;
+  }).join('');
+
+  const dates=points.map((p,i)=>{
+    const show=
+      rows.length<=6 ||
+      i===0 ||
+      i===rows.length-1;
+
+    if(!show)return '';
+
+    return `
+      <text
+        text-anchor="middle"
+        x="${p.x}"
+        y="${H-10}"
+      >
+        ${esc(fmtDate(p.date).replace(/\s+\d{4}$/,''))}
+      </text>
+    `;
+  }).join('');
+
+  return `
+    <div class="chart-scroll">
+      <svg
+        class="yks-chart"
+        viewBox="0 0 ${W} ${H}"
+        role="img"
+        aria-label="Gelişim grafiği"
+      >
+        ${horizontal}
+
+        <polygon
+          class="area"
+          points="${area}"
+        />
+
+        <polyline
+          class="line"
+          points="${polyline}"
+        />
+
+        ${dots}
+        ${dates}
+      </svg>
+    </div>
+  `;
+}
 function empty(title,text,icon='◇'){return `<div class="empty"><div class="empty-icon">${icon}</div><strong>${esc(title)}</strong><span>${esc(text)}</span></div>`;}
 function formDataObject(form){return Object.fromEntries(new FormData(form).entries());}
 
