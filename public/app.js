@@ -682,13 +682,407 @@ async function renderPlanner(){
 }
 
 async function renderExams(){
-  await ensureCurriculum();const d=await api('/api/exams');let exam='TYT';
-  const formSubjects=()=>Object.keys(state.curriculum[exam]||{}).map(s=>`<div class="list-row"><div class="grow"><strong>${esc(s)}</strong><small>Doğru / Yanlış / Boş</small></div><div class="triple" style="width:min(340px,60%)"><input data-exam-correct="${esc(s)}" type="number" min="0" placeholder="D"><input data-exam-wrong="${esc(s)}" type="number" min="0" placeholder="Y"><input data-exam-blank="${esc(s)}" type="number" min="0" placeholder="B"></div></div>`).join('');
-  root.innerHTML=`<div class="section-title"><div><span class="eyebrow">NET GELİŞİMİ</span><h1>Deneme Takibi</h1><p>TYT ve alanına uygun AYT derslerini ayrı ayrı kaydet.</p></div></div><div class="form-panel"><article class="panel"><form id="examForm" class="compact-form"><div class="field-row"><label>Sınav<select id="examType" name="examType"><option>TYT</option><option>AYT</option></select></label><label>Tarih<input name="examDate" type="date" value="${todayISO()}" required></label></div><label>Deneme adı<input name="examName" required placeholder="Örn. Türkiye Geneli 3"></label><div id="examSubjectRows" class="list">${formSubjects()}</div><button class="btn primary" type="submit">Denemeyi Kaydet</button></form></article>
-  <article class="panel"><div class="panel-head"><div><span class="eyebrow">GEÇMİŞ</span><h3>Son denemeler</h3></div></div><div class="list">${(d.items||[]).length?d.items.map(x=>`<div class="list-row"><div class="grow"><strong>${esc(x.exam_name)} · ${esc(x.exam_type)}</strong><small>${fmtDate(x.exam_date)}</small></div><span class="tag">${Number(x.total_net).toFixed(2)} net</span><button class="btn danger small" data-exam-delete="${x.id}">Sil</button></div>`).join(''):empty('Henüz deneme yok','İlk deneme sonucunu kaydet.','▥')}</div></article></div>`;
-  $('#examType',root).onchange=e=>{exam=e.target.value;$('#examSubjectRows',root).innerHTML=formSubjects();};
-  $('#examForm',root).onsubmit=async e=>{e.preventDefault();const f=formDataObject(e.currentTarget),details={};Object.keys(state.curriculum[f.examType]||{}).forEach(s=>{const correctEl=$$('[data-exam-correct]',root).find(el=>el.dataset.examCorrect===s),wrongEl=$$('[data-exam-wrong]',root).find(el=>el.dataset.examWrong===s),blankEl=$$('[data-exam-blank]',root).find(el=>el.dataset.examBlank===s);details[s]={correct:Number(correctEl?.value||0),wrong:Number(wrongEl?.value||0),blank:Number(blankEl?.value||0)}});const b=e.currentTarget.querySelector('button[type=submit]');loading(b,true);try{await api('/api/exams',{method:'POST',body:JSON.stringify({...f,details})});toast('Deneme kaydedildi.');renderExams();}catch(err){toast(err.message,'error');}finally{loading(b,false,'Denemeyi Kaydet');}};
-  $$('[data-exam-delete]',root).forEach(b=>b.onclick=async()=>{if(!confirm('Deneme kaydını silmek istiyor musun?'))return;await api(`/api/exams?id=${b.dataset.examDelete}`,{method:'DELETE'});renderExams();});
+  await ensureCurriculum();
+
+  const d=await api('/api/exams');
+  const items=d.items||[];
+
+  let exam='TYT';
+  let chartExam='TYT';
+
+  const formSubjects=()=>Object.keys(
+    state.curriculum[exam]||{}
+  ).map(s=>`
+    <div class="list-row">
+      <div class="grow">
+        <strong>${esc(s)}</strong>
+        <small>Doğru / Yanlış / Boş</small>
+      </div>
+
+      <div class="triple" style="width:min(340px,60%)">
+        <input
+          data-exam-correct="${esc(s)}"
+          type="number"
+          min="0"
+          placeholder="D"
+        >
+
+        <input
+          data-exam-wrong="${esc(s)}"
+          type="number"
+          min="0"
+          placeholder="Y"
+        >
+
+        <input
+          data-exam-blank="${esc(s)}"
+          type="number"
+          min="0"
+          placeholder="B"
+        >
+      </div>
+    </div>
+  `).join('');
+
+  const chartHTML=()=>{
+    const rows=items
+      .filter(x=>x.exam_type===chartExam)
+      .sort(
+        (a,b)=>
+          new Date(a.exam_date)-
+          new Date(b.exam_date)
+      );
+
+    const latest=
+      rows.length
+        ? Number(rows[rows.length-1].total_net)
+        : null;
+
+    const previous=
+      rows.length>1
+        ? Number(rows[rows.length-2].total_net)
+        : null;
+
+    const delta=
+      latest!==null && previous!==null
+        ? latest-previous
+        : null;
+
+    const deltaClass=
+      delta===null
+        ? 'trend-neutral'
+        : delta>0
+          ? 'trend-up'
+          : delta<0
+            ? 'trend-down'
+            : 'trend-neutral';
+
+    const deltaText=
+      delta===null
+        ? 'Karşılaştırma için 2 deneme gerekli'
+        : delta>0
+          ? `↑ ${delta.toFixed(2)} net`
+          : delta<0
+            ? `↓ ${Math.abs(delta).toFixed(2)} net`
+            : 'Değişim yok';
+
+    return `
+      <article class="panel trend-panel">
+
+        <div class="trend-header">
+          <div>
+            <span class="eyebrow">
+              NET GELİŞİMİ
+            </span>
+
+            <h3>${chartExam} Net Grafiği</h3>
+          </div>
+
+          <div class="trend-change">
+            ${
+              latest!==null
+                ? `<strong>${latest.toFixed(2)} net</strong>`
+                : `<strong>—</strong>`
+            }
+
+            <small class="${deltaClass}">
+              ${deltaText}
+            </small>
+          </div>
+        </div>
+
+        <div class="tabs" style="margin-bottom:15px">
+          <button
+            class="tab ${chartExam==='TYT'?'active':''}"
+            data-exam-chart="TYT"
+          >
+            TYT
+          </button>
+
+          <button
+            class="tab ${chartExam==='AYT'?'active':''}"
+            data-exam-chart="AYT"
+          >
+            AYT
+          </button>
+        </div>
+
+        ${lineChart(rows,{
+          valueKey:'total_net',
+          dateKey:'exam_date',
+          emptyText:`${chartExam} grafiği için en az 2 deneme kaydı gerekli.`,
+          suffix:''
+        })}
+
+      </article>
+    `;
+  };
+
+  root.innerHTML=`
+    <div class="section-title">
+      <div>
+        <span class="eyebrow">NET GELİŞİMİ</span>
+        <h1>Deneme Takibi</h1>
+        <p>
+          TYT ve alanına uygun AYT derslerini
+          ayrı ayrı kaydet.
+        </p>
+      </div>
+    </div>
+
+    <div id="examTrendPanel">
+      ${chartHTML()}
+    </div>
+
+    <div
+      class="form-panel"
+      style="margin-top:15px"
+    >
+      <article class="panel">
+
+        <form
+          id="examForm"
+          class="compact-form"
+        >
+          <div class="field-row">
+
+            <label>
+              Sınav
+
+              <select
+                id="examType"
+                name="examType"
+              >
+                <option>TYT</option>
+                <option>AYT</option>
+              </select>
+            </label>
+
+            <label>
+              Tarih
+
+              <input
+                name="examDate"
+                type="date"
+                value="${todayISO()}"
+                required
+              >
+            </label>
+
+          </div>
+
+          <label>
+            Deneme adı
+
+            <input
+              name="examName"
+              required
+              placeholder="Örn. Türkiye Geneli 3"
+            >
+          </label>
+
+          <div
+            id="examSubjectRows"
+            class="list"
+          >
+            ${formSubjects()}
+          </div>
+
+          <button
+            class="btn primary"
+            type="submit"
+          >
+            Denemeyi Kaydet
+          </button>
+        </form>
+
+      </article>
+
+      <article class="panel">
+
+        <div class="panel-head">
+          <div>
+            <span class="eyebrow">GEÇMİŞ</span>
+            <h3>Son denemeler</h3>
+          </div>
+        </div>
+
+        <div class="list">
+          ${
+            items.length
+              ? items.map(x=>`
+                <div class="list-row">
+
+                  <div class="grow">
+                    <strong>
+                      ${esc(x.exam_name)}
+                      ·
+                      ${esc(x.exam_type)}
+                    </strong>
+
+                    <small>
+                      ${fmtDate(x.exam_date)}
+                    </small>
+                  </div>
+
+                  <span class="tag">
+                    ${Number(x.total_net).toFixed(2)}
+                    net
+                  </span>
+
+                  <button
+                    class="btn danger small"
+                    data-exam-delete="${x.id}"
+                  >
+                    Sil
+                  </button>
+
+                </div>
+              `).join('')
+              : empty(
+                  'Henüz deneme yok',
+                  'İlk deneme sonucunu kaydet.',
+                  '▥'
+                )
+          }
+        </div>
+
+      </article>
+    </div>
+  `;
+
+  const bindChartTabs=()=>{
+    $$('[data-exam-chart]',root)
+      .forEach(button=>{
+        button.onclick=()=>{
+          chartExam=
+            button.dataset.examChart;
+
+          $('#examTrendPanel',root)
+            .innerHTML=chartHTML();
+
+          bindChartTabs();
+        };
+      });
+  };
+
+  bindChartTabs();
+
+  $('#examType',root).onchange=e=>{
+    exam=e.target.value;
+
+    $('#examSubjectRows',root)
+      .innerHTML=formSubjects();
+  };
+
+  $('#examForm',root).onsubmit=async e=>{
+    e.preventDefault();
+
+    const f=
+      formDataObject(e.currentTarget);
+
+    const details={};
+
+    Object.keys(
+      state.curriculum[f.examType]||{}
+    ).forEach(s=>{
+
+      const correctEl=
+        $$('[data-exam-correct]',root)
+          .find(
+            el=>
+              el.dataset.examCorrect===s
+          );
+
+      const wrongEl=
+        $$('[data-exam-wrong]',root)
+          .find(
+            el=>
+              el.dataset.examWrong===s
+          );
+
+      const blankEl=
+        $$('[data-exam-blank]',root)
+          .find(
+            el=>
+              el.dataset.examBlank===s
+          );
+
+      details[s]={
+        correct:Number(
+          correctEl?.value||0
+        ),
+        wrong:Number(
+          wrongEl?.value||0
+        ),
+        blank:Number(
+          blankEl?.value||0
+        )
+      };
+    });
+
+    const b=
+      e.currentTarget
+        .querySelector(
+          'button[type=submit]'
+        );
+
+    loading(b,true);
+
+    try{
+      await api(
+        '/api/exams',
+        {
+          method:'POST',
+          body:JSON.stringify({
+            ...f,
+            details
+          })
+        }
+      );
+
+      toast('Deneme kaydedildi.');
+
+      renderExams();
+
+    }catch(err){
+
+      toast(
+        err.message,
+        'error'
+      );
+
+    }finally{
+
+      loading(
+        b,
+        false,
+        'Denemeyi Kaydet'
+      );
+    }
+  };
+
+  $$('[data-exam-delete]',root)
+    .forEach(b=>{
+      b.onclick=async()=>{
+        if(
+          !confirm(
+            'Deneme kaydını silmek istiyor musun?'
+          )
+        ){
+          return;
+        }
+
+        await api(
+          `/api/exams?id=${b.dataset.examDelete}`,
+          {
+            method:'DELETE'
+          }
+        );
+
+        renderExams();
+      };
+    });
 }
 
 async function renderQuestions(){
