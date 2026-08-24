@@ -139,47 +139,68 @@ async function renderToday(){
   $$('[data-toggle-plan]',root).forEach(b=>b.onclick=async()=>{try{await api('/api/planner',{method:'POST',body:JSON.stringify({action:'toggle',id:Number(b.dataset.togglePlan)})});await renderToday();}catch(e){toast(e.message,'error');}});
 }
 
-async function renderCurriculum(){
+async function renderCurriculum() {
   await ensureCurriculum(true);
-  let exam='TYT';
-  let openSubject='';
 
-  const draw=()=>{
-    const pm=progressMap();
-    const subjects=state.curriculum[exam]||{};
+  let exam = 'TYT';
+  let openSubject = null;
 
-    const overall=Object.entries(subjects).reduce(
-      (acc,[subject,topics])=>{
-        const done=topics.filter(
-          t=>pm.get(`${exam}|${subject}|${t.id}`)?.completed
+  const draw = () => {
+    const pm = progressMap();
+    const subjects = state.curriculum[exam] || {};
+
+    const overall = Object.entries(subjects).reduce(
+      (acc, [subject, topics]) => {
+        const done = topics.filter(
+          t =>
+            pm.get(
+              `${exam}|${subject}|${t.id}`
+            )?.completed
         ).length;
 
-        acc.done+=done;
-        acc.total+=topics.length;
+        acc.done += done;
+        acc.total += topics.length;
+
         return acc;
       },
-      {done:0,total:0}
+      { done: 0, total: 0 }
     );
 
-    root.innerHTML=`
+    const overallPct = overall.total
+      ? Math.round(
+          (overall.done / overall.total) * 100
+        )
+      : 0;
+
+    root.innerHTML = `
       <div class="section-title">
         <div>
-          <span class="eyebrow">RESMÎ 2026 KAPSAMI</span>
+          <span class="eyebrow">
+            RESMÎ 2026 KAPSAMI
+          </span>
+
           <h1>${exam} müfredatı</h1>
-          <p>${esc(state.curriculum.meta?.note||'')}</p>
+
+          <p>
+            ${esc(
+              state.curriculum.meta?.note || ''
+            )}
+          </p>
         </div>
 
         <div class="tabs">
           <button
-            data-exam="TYT"
-            class="${exam==='TYT'?'active':''}"
+            type="button"
+            data-exam-tab="TYT"
+            class="${exam === 'TYT' ? 'active' : ''}"
           >
             TYT
           </button>
 
           <button
-            data-exam="AYT"
-            class="${exam==='AYT'?'active':''}"
+            type="button"
+            data-exam-tab="AYT"
+            class="${exam === 'AYT' ? 'active' : ''}"
           >
             AYT
           </button>
@@ -192,61 +213,62 @@ async function renderCurriculum(){
       >
         <div class="progress-meta">
           <span>${exam} genel ilerleme</span>
-
-          <strong>
-            %${
-              overall.total
-                ? Math.round(
-                    overall.done /
-                    overall.total *
-                    100
-                  )
-                : 0
-            }
-          </strong>
+          <strong>%${overallPct}</strong>
         </div>
 
-        ${
-          progressBar(
-            overall.total
-              ? overall.done /
-                overall.total *
-                100
-              : 0
-          )
-        }
+        ${progressBar(overallPct)}
       </div>
 
       <div class="subject-grid">
-        ${
-          Object.entries(subjects)
-            .map(([subject,topics])=>{
-              const done=topics.filter(
-                t=>pm.get(
+        ${Object.entries(subjects)
+          .map(([subject, topics]) => {
+            const done = topics.filter(
+              t =>
+                pm.get(
                   `${exam}|${subject}|${t.id}`
                 )?.completed
-              ).length;
+            ).length;
 
-              const pct=topics.length
-                ? Math.round(
-                    done /
-                    topics.length *
-                    100
-                  )
-                : 0;
+            const pct = topics.length
+              ? Math.round(
+                  (done / topics.length) * 100
+                )
+              : 0;
 
-              return `
-                <details
-                  class="subject-card"
-                  data-subject-card="${esc(subject)}"
-                  ${
-                    openSubject===subject
-                      ? 'open'
-                      : ''
-                  }
+            const isOpen =
+              openSubject === subject;
+
+            return `
+              <div
+                class="subject-card"
+                data-subject="${esc(subject)}"
+              >
+                <button
+                  type="button"
+                  class="subject-open-button"
+                  data-subject-toggle="${esc(subject)}"
+                  style="
+                    width:100%;
+                    border:0;
+                    background:transparent;
+                    color:inherit;
+                    text-align:left;
+                    cursor:pointer;
+                    padding:0;
+                  "
                 >
-                  <summary>
-                    <div class="subject-summary">
+                  <div
+                    style="
+                      display:flex;
+                      align-items:center;
+                      justify-content:space-between;
+                      gap:14px;
+                    "
+                  >
+                    <div
+                      class="subject-summary"
+                      style="flex:1"
+                    >
                       <strong>
                         ${esc(subject)}
                       </strong>
@@ -254,117 +276,160 @@ async function renderCurriculum(){
                       ${progressBar(pct)}
                     </div>
 
-                    <span class="percent-chip">
-                      %${pct}
-                    </span>
-                  </summary>
+                    <div
+                      style="
+                        display:flex;
+                        align-items:center;
+                        gap:10px;
+                      "
+                    >
+                      <span class="percent-chip">
+                        %${pct}
+                      </span>
 
-                  <div class="topic-list">
-                    ${
-                      topics
-                        .map(t=>{
-                          const p=
-                            pm.get(
-                              `${exam}|${subject}|${t.id}`
-                            )||{};
-
-                          return `
-                            <div class="topic-row">
-                              <label>
-                                <input
-                                  type="checkbox"
-                                  data-topic-check
-                                  data-exam="${exam}"
-                                  data-subject="${esc(subject)}"
-                                  data-topic="${esc(t.id)}"
-                                  ${
-                                    p.completed
-                                      ? 'checked'
-                                      : ''
-                                  }
-                                >
-
-                                <span>
-                                  ${esc(t.name)}
-                                </span>
-                              </label>
-
-                              <button
-                                class="review-btn ${
-                                  p.review_needed
-                                    ? 'active'
-                                    : ''
-                                }"
-                                title="Tekrar listesine ekle"
-                                data-review
-                                data-exam="${exam}"
-                                data-subject="${esc(subject)}"
-                                data-topic="${esc(t.id)}"
-                              >
-                                ↻
-                              </button>
-                            </div>
-                          `;
-                        })
-                        .join('')
-                    }
+                      <span
+                        aria-hidden="true"
+                        style="
+                          font-size:18px;
+                          transform:${
+                            isOpen
+                              ? 'rotate(180deg)'
+                              : 'rotate(0deg)'
+                          };
+                          transition:transform .2s ease;
+                        "
+                      >
+                        ▾
+                      </span>
+                    </div>
                   </div>
-                </details>
-              `;
-            })
-            .join('')
-        }
+                </button>
+
+                <div
+                  class="topic-list"
+                  data-topic-list="${esc(subject)}"
+                  style="
+                    display:${
+                      isOpen
+                        ? 'block'
+                        : 'none'
+                    };
+                    margin-top:16px;
+                  "
+                >
+                  ${topics
+                    .map(t => {
+                      const p =
+                        pm.get(
+                          `${exam}|${subject}|${t.id}`
+                        ) || {};
+
+                      return `
+                        <div class="topic-row">
+                          <label>
+                            <input
+                              type="checkbox"
+                              data-topic-check
+                              data-exam="${exam}"
+                              data-subject="${esc(subject)}"
+                              data-topic="${esc(t.id)}"
+                              ${
+                                p.completed
+                                  ? 'checked'
+                                  : ''
+                              }
+                            >
+
+                            <span>
+                              ${esc(t.name)}
+                            </span>
+                          </label>
+
+                          <button
+                            type="button"
+                            class="review-btn ${
+                              p.review_needed
+                                ? 'active'
+                                : ''
+                            }"
+                            title="Tekrar listesine ekle"
+                            data-review
+                            data-exam="${exam}"
+                            data-subject="${esc(subject)}"
+                            data-topic="${esc(t.id)}"
+                          >
+                            ↻
+                          </button>
+                        </div>
+                      `;
+                    })
+                    .join('')}
+                </div>
+              </div>
+            `;
+          })
+          .join('')}
       </div>
     `;
 
-   $$('[data-subject-card] > summary', root)
-  .forEach(summary => {
-    summary.addEventListener('click', () => {
-      const card = summary.closest('[data-subject-card]');
-
-      openSubject = card.open
-        ? ''
-        : card.dataset.subjectCard;
-    });
-  });
-
-    $$('[data-exam]',root)
-      .forEach(b=>{
-        b.onclick=()=>{
-          exam=b.dataset.exam;
-          openSubject='';
+    $$('[data-exam-tab]', root)
+      .forEach(button => {
+        button.onclick = () => {
+          exam = button.dataset.examTab;
+          openSubject = null;
           draw();
         };
       });
 
-    $$('[data-topic-check]',root)
-      .forEach(ch=>{
-        ch.onchange=async()=>{
-          const key=
-            `${ch.dataset.exam}|`+
-            `${ch.dataset.subject}|`+
-            `${ch.dataset.topic}`;
+    $$('[data-subject-toggle]', root)
+      .forEach(button => {
+        button.onclick = () => {
+          const subject =
+            button.dataset.subjectToggle;
 
-          const old=
-            progressMap().get(key)||{};
+          openSubject =
+            openSubject === subject
+              ? null
+              : subject;
 
-          openSubject=
-            ch.dataset.subject;
+          draw();
+        };
+      });
 
-          try{
+    $$('[data-topic-check]', root)
+      .forEach(checkbox => {
+        checkbox.onchange = async () => {
+          const subject =
+            checkbox.dataset.subject;
+
+          const key =
+            `${checkbox.dataset.exam}|` +
+            `${subject}|` +
+            `${checkbox.dataset.topic}`;
+
+          const old =
+            progressMap().get(key) || {};
+
+          // EN ÖNEMLİ SATIR:
+          // İşaretleme sonrası aynı ders açık kalacak.
+          openSubject = subject;
+
+          const newValue =
+            checkbox.checked;
+
+          try {
             await api(
               '/api/curriculum',
               {
-                method:'POST',
-                body:JSON.stringify({
+                method: 'POST',
+                body: JSON.stringify({
                   exam:
-                    ch.dataset.exam,
-                  subject:
-                    ch.dataset.subject,
+                    checkbox.dataset.exam,
+                  subject,
                   topicId:
-                    ch.dataset.topic,
+                    checkbox.dataset.topic,
                   completed:
-                    ch.checked,
+                    newValue,
                   reviewNeeded:
                     Boolean(
                       old.review_needed
@@ -375,46 +440,50 @@ async function renderCurriculum(){
 
             await ensureCurriculum(true);
 
+            // openSubject değişmediği için
+            // ders açık kalır.
             draw();
 
-          }catch(e){
-            ch.checked=
-              !ch.checked;
+          } catch (e) {
+            checkbox.checked =
+              !newValue;
 
             toast(
-              e.message,
+              e.message ||
+                'Müfredat kaydedilemedi.',
               'error'
             );
           }
         };
       });
 
-    $$('[data-review]',root)
-      .forEach(b=>{
-        b.onclick=async()=>{
-          const key=
-            `${b.dataset.exam}|`+
-            `${b.dataset.subject}|`+
-            `${b.dataset.topic}`;
+    $$('[data-review]', root)
+      .forEach(button => {
+        button.onclick = async () => {
+          const subject =
+            button.dataset.subject;
 
-          const old=
-            progressMap().get(key)||{};
+          const key =
+            `${button.dataset.exam}|` +
+            `${subject}|` +
+            `${button.dataset.topic}`;
 
-          openSubject=
-            b.dataset.subject;
+          const old =
+            progressMap().get(key) || {};
 
-          try{
+          openSubject = subject;
+
+          try {
             await api(
               '/api/curriculum',
               {
-                method:'POST',
-                body:JSON.stringify({
+                method: 'POST',
+                body: JSON.stringify({
                   exam:
-                    b.dataset.exam,
-                  subject:
-                    b.dataset.subject,
+                    button.dataset.exam,
+                  subject,
                   topicId:
-                    b.dataset.topic,
+                    button.dataset.topic,
                   completed:
                     Boolean(
                       old.completed
@@ -435,9 +504,10 @@ async function renderCurriculum(){
                 : 'Tekrar listesinden çıkarıldı.'
             );
 
-          }catch(e){
+          } catch (e) {
             toast(
-              e.message,
+              e.message ||
+                'İşlem gerçekleştirilemedi.',
               'error'
             );
           }
