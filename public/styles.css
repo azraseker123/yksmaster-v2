@@ -34,3 +34,147 @@
 /* Account ownership */
 .danger-zone{border-color:rgba(203,74,74,.28);background:linear-gradient(180deg,rgba(203,74,74,.035),rgba(255,255,255,.01))}
 .danger-zone .eyebrow{color:#b84b4b}
+/* =========================
+   TREND CHARTS
+========================= */
+
+.trend-card{
+  margin-top:16px;
+}
+
+.trend-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:18px;
+}
+
+.trend-head h3{
+  margin:4px 0 0;
+}
+
+.trend-summary{
+  text-align:right;
+  flex-shrink:0;
+}
+
+.trend-summary strong{
+  display:block;
+  font-size:22px;
+}
+
+.trend-summary small{
+  color:var(--muted);
+}
+
+.trend-up{
+  color:#72e6a5;
+}
+
+.trend-down{
+  color:#ff8d9a;
+}
+
+.trend-neutral{
+  color:var(--muted);
+}
+
+.chart-wrap{
+  width:100%;
+  overflow-x:auto;
+  overflow-y:hidden;
+  padding-bottom:4px;
+}
+
+.trend-chart{
+  display:block;
+  width:100%;
+  min-width:520px;
+  height:250px;
+}
+
+.chart-grid-line{
+  stroke:rgba(255,255,255,.08);
+  stroke-width:1;
+}
+
+.chart-line{
+  fill:none;
+  stroke:#8796ff;
+  stroke-width:3;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+.chart-area{
+  fill:rgba(135,150,255,.10);
+}
+
+.chart-dot{
+  fill:#aeb8ff;
+  stroke:#10182f;
+  stroke-width:3;
+}
+
+.chart-label{
+  fill:#8f9bb8;
+  font-size:11px;
+}
+
+.chart-value{
+  fill:#dfe5ff;
+  font-size:11px;
+  font-weight:700;
+}
+
+.chart-empty{
+  padding:34px 18px;
+  text-align:center;
+  color:var(--muted);
+  border:1px dashed var(--border);
+  border-radius:16px;
+}
+
+.chart-stats{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+  margin-top:14px;
+}
+
+.chart-stat{
+  padding:12px;
+  border-radius:14px;
+  background:rgba(255,255,255,.035);
+  border:1px solid var(--border);
+}
+
+.chart-stat small{
+  display:block;
+  color:var(--muted);
+  margin-bottom:5px;
+}
+
+.chart-stat strong{
+  font-size:17px;
+}
+
+@media (max-width:700px){
+  .trend-head{
+    flex-direction:column;
+  }
+
+  .trend-summary{
+    text-align:left;
+  }
+
+  .trend-chart{
+    min-width:460px;
+    height:220px;
+  }
+
+  .chart-stats{
+    grid-template-columns:1fr;
+  }
+}
