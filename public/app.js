@@ -2283,7 +2283,49 @@ async function renderBadges(){
   const d=await api('/api/badges');root.innerHTML=`<div class="section-title"><div><span class="eyebrow">OYUNLAŞTIRMA</span><h1>Rozetler</h1><p>Rozetler gerçek çalışma, soru, kaynak ve müfredat verilerinden otomatik açılır.</p></div><span class="tag green">${(d.items||[]).filter(x=>x.earned).length}/${(d.items||[]).length} kazanıldı</span></div><div class="card-grid">${(d.items||[]).map(x=>`<article class="badge-card ${x.earned?'':'locked'}"><div class="badge-icon">${x.icon}</div><h4>${esc(x.label)}</h4><p>${esc(x.description)}</p><div class="badge-date">${x.earned?`Kazanıldı · ${fmtDate(x.earnedAt)}`:'Henüz kilitli'}</div></article>`).join('')}</div>`;
 }
 
-function aiText(v){return `<div class="ai-result">${esc(v||'')}</div>`;}
+function cleanAiText(value=''){
+  return String(value)
+    // Markdown kalın/italik işaretlerini temizle
+    .replace(/\*\*/g,'')
+    .replace(/__/g,'')
+
+    // LaTeX blok ve satır ayraçlarını temizle
+    .replace(/\$\$/g,'')
+    .replace(/\$/g,'')
+    .replace(/\\\[/g,'')
+    .replace(/\\\]/g,'')
+    .replace(/\\\(/g,'')
+    .replace(/\\\)/g,'')
+
+    // Sık kullanılan LaTeX komutlarını okunabilir hale getir
+    .replace(/\\div\b/g,'÷')
+    .replace(/\\times\b/g,'×')
+    .replace(/\\cdot\b/g,'·')
+    .replace(/\\pm\b/g,'±')
+    .replace(/\\leq\b/g,'≤')
+    .replace(/\\geq\b/g,'≥')
+    .replace(/\\neq\b/g,'≠')
+    .replace(/\\sqrt\{([^{}]+)\}/g,'√($1)')
+
+    // \frac{a}{b} -> (a)/(b)
+    .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g,'($1)/($2)')
+
+    // \boxed{x} -> x
+    .replace(/\\boxed\{([^{}]+)\}/g,'$1')
+
+    // Kalan yaygın LaTeX boşluklarını temizle
+    .replace(/\\,/g,' ')
+    .replace(/\\;/g,' ')
+    .replace(/\\!/g,'')
+
+    // Gereksiz fazla boşlukları azalt
+    .replace(/[ \t]{2,}/g,' ')
+    .trim();
+}
+
+function aiText(v){
+  return `<div class="ai-result">${esc(cleanAiText(v||''))}</div>`;
+}
 async function renderAI(){
   if(!state.access?.isPro){root.innerHTML=`<div class="lock-screen"><div class="lock-icon">✦</div><h2>AI Pro özelliği</h2><p>AI Koç, Flashcard, Test Lab, AI programı, fotoğraftan soru çözme ve yanlış analizi AI Pro paketine dahildir.</p><button class="btn primary" data-upgrade>AI Pro'yu Gör</button></div>`;$('[data-upgrade]',root).onclick=()=>navigate('settings');return;}
   await ensureCurriculum();
