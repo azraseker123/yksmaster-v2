@@ -305,6 +305,86 @@ function validateTest(data, count) {
 }
 
 
+function normalizeProgramLabel(value = '') {
+  return String(value)
+    .toLocaleLowerCase('tr-TR')
+    .replace(/[’'"]/g, '')
+    .replace(/[(){}\[\].,:;!?/\\|_-]/g, ' ')
+    .replace(/\bkonusu\b/g, '')
+    .replace(/\bkonu\b/g, '')
+    .replace(/\bdersi\b/g, '')
+    .replace(/\bders\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+
+function findCanonicalSubject(curriculum, exam, subject) {
+  const subjects =
+    Object.keys(curriculum[exam] || {});
+
+  const wanted =
+    normalizeProgramLabel(subject);
+
+  return subjects.find(
+    s =>
+      normalizeProgramLabel(s) === wanted
+  ) || null;
+}
+
+
+function findCanonicalTopic(topics, topic) {
+  const wanted =
+    normalizeProgramLabel(topic);
+
+  if (!wanted) return null;
+
+  // Önce tamamen aynı olanı bul.
+  const exact =
+    topics.find(
+      t =>
+        normalizeProgramLabel(t.name) === wanted
+    );
+
+  if (exact) return exact;
+
+
+  /*
+    AI bazen resmi konu adına küçük bir ekleme
+    yapabiliyor.
+
+    Örneğin:
+    "Fonksiyonlar konusu"
+    "Paragrafta Anlam"
+    gibi.
+
+    Yalnızca tek bir açık eşleşme varsa kabul et.
+  */
+  const possible =
+    topics.filter(t => {
+      const official =
+        normalizeProgramLabel(t.name);
+
+      if (
+        official.length < 5 ||
+        wanted.length < 5
+      ) {
+        return false;
+      }
+
+      return (
+        official.includes(wanted) ||
+        wanted.includes(official)
+      );
+    });
+
+
+  return possible.length === 1
+    ? possible[0]
+    : null;
+}
+
+
 function validateProgram(
   data,
   curriculum,
@@ -409,26 +489,81 @@ function validateProgram(
       }
 
 
-      const allowedTopics =
-        curriculum[task.exam]?.[
+      /*
+        AI'ın ders adını resmi müfredattaki
+        ders adına dönüştür.
+      */
+      const canonicalSubject =
+        findCanonicalSubject(
+          curriculum,
+          task.exam,
           task.subject
-        ] || [];
+        );
 
 
-      if (
-        !allowedTopics.length ||
-        !task.topic ||
-        !allowedTopics.some(
-          t => t.name === task.topic
-        )
-      ) {
+      if (!canonicalSubject) {
+        console.warn(
+          '[AI PROGRAM] Subject mismatch:',
+          {
+            exam: task.exam,
+            received: task.subject
+          }
+        );
+
         throw Object.assign(
           new Error(
-            'AI programındaki bir ders veya konu takip müfredatıyla eşleşmedi. Yeniden oluşturmayı dene.'
+            `AI programındaki "${task.subject}" dersi takip müfredatıyla eşleşmedi. Yeniden oluşturmayı dene.`
           ),
           { status: 502 }
         );
       }
+
+
+      const allowedTopics =
+        curriculum[task.exam]?.[
+          canonicalSubject
+        ] || [];
+
+
+      /*
+        AI'ın konu adını resmi konu adına
+        dönüştür.
+      */
+      const canonicalTopic =
+        findCanonicalTopic(
+          allowedTopics,
+          task.topic
+        );
+
+
+      if (!canonicalTopic) {
+        console.warn(
+          '[AI PROGRAM] Topic mismatch:',
+          {
+            exam: task.exam,
+            subject: canonicalSubject,
+            received: task.topic
+          }
+        );
+
+        throw Object.assign(
+          new Error(
+            `AI programındaki "${task.topic}" konusu takip müfredatıyla eşleşmedi. Yeniden oluşturmayı dene.`
+          ),
+          { status: 502 }
+        );
+      }
+
+
+      /*
+        Kullanıcıya AI'ın yaklaşık yazdığı isim
+        yerine her zaman resmi adı göster.
+      */
+      task.subject =
+        canonicalSubject;
+
+      task.topic =
+        canonicalTopic.name;
     }
   }
 
@@ -438,6 +573,7 @@ function validateProgram(
       data.summary,
       3000
     );
+
 
   return data;
 }
