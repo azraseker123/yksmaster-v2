@@ -1220,7 +1220,9 @@ Her gün:
 - En az ${minTasks}, en fazla ${maxTasks} görev seç.
 - Aynı günü tek bir derse yığma.
 - Ancak kullanıcı özellikle bir dersi "ağırlıklı" istediyse o derse daha fazla görev ver.
-- Yan dersleri tamamen ihmal etme.
+- Kullanıcı özel notunda belirli dersleri açıkça isimlendirmişse, programı öncelikle ve mümkün olduğunca SADECE bu derslerden oluştur.
+- Kullanıcı "X ağırlıklı, Y ve Z yan ders" diyorsa X ana ağırlık olmalı; Y ve Z destek dersleri olmalı.
+- Kullanıcının açıkça istemediği başka bir dersi yalnızca öğrenci verilerinde acil bir tekrar ihtiyacı varsa ekle; böyle bir durumda reason alanında neden eklendiğini açıkça belirt.
 - Kullanıcının özel notuna mümkün olduğunca sadık kal.
 
 PARAGRAF KURALI:
