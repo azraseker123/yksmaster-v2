@@ -1049,143 +1049,196 @@ Kurallar:
 
 
     /*
-      AI PROGRAM
-    */
-    if (
-      action === 'program'
-    ) {
-      const hours =
-        int(
-          req.body?.hoursPerDay,
-          1,
-          12
-        ) || 4;
+    /*
+  AI PROGRAM
+*/
+if (
+  action === 'program'
+) {
+  const hours =
+    int(
+      req.body?.hoursPerDay,
+      1,
+      12
+    ) || 4;
+
+  const note =
+    text(
+      req.body?.note,
+      1600
+    );
+
+  const start =
+    turkeyDate();
+
+  const dates =
+    Array.from(
+      { length: 7 },
+      (_, i) =>
+        addDays(start, i)
+    );
+
+  const targetMinutes =
+    hours * 60;
+
+  /*
+    Günlük görev sayısını çalışma süresine göre
+    belirliyoruz.
+  */
+  const minTasks =
+    hours <= 4
+      ? 4
+      : hours <= 7
+        ? 5
+        : 6;
+
+  const maxTasks =
+    hours <= 4
+      ? 5
+      : hours <= 7
+        ? 6
+        : 8;
 
 
-      const note =
-        text(
-          req.body?.note,
-          1600
-        );
+  const schema = {
+    type: 'object',
 
+    properties: {
+      summary: {
+        type: 'string'
+      },
 
-      const start =
-        turkeyDate();
+      days: {
+        type: 'array',
+        minItems: 7,
+        maxItems: 7,
 
+        items: {
+          type: 'object',
 
-      const dates =
-        Array.from(
-          { length: 7 },
-          (_, i) =>
-            addDays(start, i)
-        );
+          properties: {
+            date: {
+              type: 'string',
+              format: 'date'
+            },
 
+            tasks: {
+              type: 'array',
+              minItems: minTasks,
+              maxItems: maxTasks,
 
-      const schema = {
-        type: 'object',
+              items: {
+                type: 'object',
 
-        properties: {
-          summary: {
-            type: 'string'
-          },
+                properties: {
+                  exam: {
+                    type: 'string',
+                    enum: [
+                      'TYT',
+                      'AYT'
+                    ]
+                  },
 
-          days: {
-            type: 'array',
-            minItems: 7,
-            maxItems: 7,
+                  subject: {
+                    type: 'string'
+                  },
 
-            items: {
-              type: 'object',
+                  topic: {
+                    type: 'string'
+                  },
 
-              properties: {
-                date: {
-                  type: 'string',
-                  format: 'date'
+                  priority: {
+                    type: 'string',
+                    enum: [
+                      'high',
+                      'medium',
+                      'low'
+                    ]
+                  },
+
+                  reason: {
+                    type: 'string'
+                  }
                 },
 
-                tasks: {
-                  type: 'array',
-
-                  items: {
-                    type: 'object',
-
-                    properties: {
-                      exam: {
-                        type: 'string',
-                        enum: [
-                          'TYT',
-                          'AYT'
-                        ]
-                      },
-
-                      subject: {
-                        type: 'string'
-                      },
-
-                      topic: {
-                        type: 'string'
-                      },
-
-                      minutes: {
-                        type: 'integer',
-                        minimum: 1,
-                        maximum: 720
-                      },
-
-                      reason: {
-                        type: 'string'
-                      }
-                    },
-
-                    required: [
-                      'exam',
-                      'subject',
-                      'topic',
-                      'minutes',
-                      'reason'
-                    ]
-                  }
-                }
-              },
-
-              required: [
-                'date',
-                'tasks'
-              ]
+                required: [
+                  'exam',
+                  'subject',
+                  'topic',
+                  'priority',
+                  'reason'
+                ]
+              }
             }
-          }
-        },
+          },
 
-        required: [
-          'summary',
-          'days'
-        ]
-      };
+          required: [
+            'date',
+            'tasks'
+          ]
+        }
+      }
+    },
+
+    required: [
+      'summary',
+      'days'
+    ]
+  };
 
 
-      const raw =
-        await geminiText({
-          userId:
-            user.id,
+  const raw =
+    await geminiText({
+      userId:
+        user.id,
 
-          action,
+      action,
 
-          model:
-            GEMINI_FAST_MODEL,
+      model:
+        GEMINI_FAST_MODEL,
 
-          systemInstruction:
-            `${SYSTEM}
+      systemInstruction:
+        `${SYSTEM}
 
-7 günlük gerçekçi çalışma programı oluştur.
+Sen yalnızca görev SEÇECEKSİN.
+Görev sürelerini SEN belirleme.
+Dakikaları uygulamanın backend'i hesaplayacak.
 
-Öğrencinin:
-- hedefini,
-- performansını,
-- son denemelerini,
-- tekrar listesini
-dikkate al.
+7 günlük gerçekten kişiselleştirilmiş YKS çalışma programı oluştur.
 
-Günlük yaklaşık ${hours} saat çalışma planla.
+ÖNCELİK SIRASI:
+1. Kullanıcının yazdığı özel not
+2. Son denemelerdeki zayıflıklar
+3. Soru performansı
+4. Tekrar listesi
+5. Hedef bölüm ve sıralama
+6. Müfredat dengesi
+
+Öğrenci günlük yaklaşık ${hours} saat çalışacak.
+
+Her gün:
+- En az ${minTasks}, en fazla ${maxTasks} görev seç.
+- Aynı günü tek bir derse yığma.
+- Ancak kullanıcı özellikle bir dersi "ağırlıklı" istediyse o derse daha fazla görev ver.
+- Yan dersleri tamamen ihmal etme.
+- Kullanıcının özel notuna mümkün olduğunca sadık kal.
+
+PARAGRAF KURALI:
+- Paragraf tek başına günün ana çalışması olamaz.
+- Genellikle günde en fazla 1 paragraf görevi seç.
+- Kullanıcı özellikle istemediyse her gün aynı paragraf konusunu tekrar etme.
+
+TEKRAR KURALI:
+- Aynı konuyu 7 gün boyunca sürekli verme.
+- Aynı konu gerçekten zayıf veya tekrar listesinde değilse haftada en fazla 2-3 kez kullan.
+- Konuları haftaya yay.
+
+KİŞİSELLEŞTİRME:
+- Öğrencinin verilerinde zayıflık varsa high priority ver.
+- Kullanıcının özellikle ağırlık istediği derse high priority ver.
+- Koruma/yan çalışma olan derslere medium veya low priority ver.
+- reason alanı genel cümle olmasın.
+- Mümkünse öğrencinin kendi verisine veya isteğine dayanarak neden seçildiğini yaz.
 
 Kullanılabilecek tarihler SADECE:
 ${dates.join(', ')}
@@ -1198,39 +1251,282 @@ ${JSON.stringify(curriculumLabels)}
 
 ÇOK ÖNEMLİ:
 - Sadece öğrencinin alanına uygun TYT ve AYT derslerini kullan.
-- exam alanı sadece TYT veya AYT olabilir.
-- Ders ve konu adlarını verilen listeden BİREBİR kullan.
-- Liste dışında konu adı üretme.
-- Bir günü gereksiz sayıda küçük göreve bölme.
-- Günlük süreyi mümkün olduğunca ${hours} saate yakın tut.
+- exam sadece TYT veya AYT olabilir.
+- Ders ve konu adlarını verilen listeden kullan.
+- Liste dışında konu üretme.
+- minutes alanı üretme.
 `,
 
-          input:
-            `Program oluştur.
+      input:
+        `7 günlük program görevlerini oluştur.
 
-Kullanıcı notu:
-${note || 'Yok'}`,
+Kullanıcının özel isteği:
+${note || 'Özel isteği yok.'}`,
 
-          responseSchema:
-            schema
-        });
+      responseSchema:
+        schema
+    });
 
 
-      return res
-        .status(200)
-        .json({
-          ...validateProgram(
-            parseStructured(raw),
-            curriculum,
-            dates
-          ),
+  const plan =
+    parseStructured(raw);
 
-          model:
-            GEMINI_FAST_MODEL
-        });
+
+  /*
+    AI sadece öncelik belirledi.
+    Dakikaları burada biz dağıtıyoruz.
+  */
+  for (const day of plan.days || []) {
+
+    const tasks =
+      Array.isArray(day.tasks)
+        ? day.tasks
+        : [];
+
+
+    const priorityWeight = {
+      high: 1.45,
+      medium: 1,
+      low: 0.72
+    };
+
+
+    const getTaskRules = task => {
+      const label =
+        normalizeProgramLabel(
+          `${task.subject} ${task.topic}`
+        );
+
+
+      /*
+        Paragraf kısa ve düzenli çalışma olmalı.
+      */
+      if (
+        label.includes('paragraf')
+      ) {
+        return {
+          min: 25,
+          max: 40
+        };
+      }
+
+
+      /*
+        Matematik daha uzun odak bloklarına
+        izin verebilir ama 2-2.5 saatlik tek
+        görev yok.
+      */
+      if (
+        label.includes('matematik')
+      ) {
+        return {
+          min: 45,
+          max: 90
+        };
+      }
+
+
+      if (
+        label.includes('geometri') ||
+        label.includes('ucgen')
+      ) {
+        return {
+          min: 40,
+          max: 75
+        };
+      }
+
+
+      /*
+        Fen ve diğer normal konu blokları.
+      */
+      return {
+        min: 30,
+        max: 70
+      };
+    };
+
+
+    const weighted =
+      tasks.map(task => {
+        const rules =
+          getTaskRules(task);
+
+        return {
+          task,
+          weight:
+            priorityWeight[
+              task.priority
+            ] || 1,
+
+          min:
+            rules.min,
+
+          max:
+            rules.max
+        };
+      });
+
+
+    const totalWeight =
+      weighted.reduce(
+        (sum, x) =>
+          sum + x.weight,
+        0
+      ) || 1;
+
+
+    /*
+      İlk süre dağılımı.
+    */
+    weighted.forEach(x => {
+      let minutes =
+        Math.round(
+          (
+            targetMinutes *
+            x.weight /
+            totalWeight
+          ) / 5
+        ) * 5;
+
+
+      minutes =
+        Math.max(
+          x.min,
+          Math.min(
+            x.max,
+            minutes
+          )
+        );
+
+
+      x.minutes =
+        minutes;
+    });
+
+
+    /*
+      Hedef süreye yaklaşmak için kalan dakikaları
+      5'er dakika dağıt.
+    */
+    let currentTotal =
+      weighted.reduce(
+        (sum, x) =>
+          sum + x.minutes,
+        0
+      );
+
+
+    let safety = 0;
+
+
+    while (
+      currentTotal <
+        targetMinutes - 5 &&
+      safety < 500
+    ) {
+      safety++;
+
+
+      const candidates =
+        weighted
+          .filter(
+            x =>
+              x.minutes + 5 <= x.max
+          )
+          .sort(
+            (a, b) =>
+              (
+                b.weight *
+                (b.max - b.minutes)
+              ) -
+              (
+                a.weight *
+                (a.max - a.minutes)
+              )
+          );
+
+
+      if (!candidates.length) {
+        break;
+      }
+
+
+      candidates[0].minutes += 5;
+      currentTotal += 5;
     }
 
 
+    safety = 0;
+
+
+    while (
+      currentTotal >
+        targetMinutes + 5 &&
+      safety < 500
+    ) {
+      safety++;
+
+
+      const candidates =
+        weighted
+          .filter(
+            x =>
+              x.minutes - 5 >= x.min
+          )
+          .sort(
+            (a, b) =>
+              a.weight - b.weight
+          );
+
+
+      if (!candidates.length) {
+        break;
+      }
+
+
+      candidates[0].minutes -= 5;
+      currentTotal -= 5;
+    }
+
+
+    day.tasks =
+      weighted.map(x => ({
+        exam:
+          x.task.exam,
+
+        subject:
+          x.task.subject,
+
+        topic:
+          x.task.topic,
+
+        minutes:
+          x.minutes,
+
+        reason:
+          x.task.reason
+      }));
+  }
+
+
+  const validated =
+    validateProgram(
+      plan,
+      curriculum,
+      dates
+    );
+
+
+  return res
+    .status(200)
+    .json({
+      ...validated,
+
+      model:
+        GEMINI_FAST_MODEL
+    });
+}
     /*
       YANLIŞ ANALİZİ
     */
