@@ -860,7 +860,11 @@ export default async function handler(
           )
         )
     };
-
+    const availableCurriculumLabels =
+      buildAvailableCurriculum(
+        curriculum,
+        ctx
+      );
 
     /*
       AI KOÇ
