@@ -247,12 +247,80 @@ $('#nav').addEventListener('click',e=>{
 });
 
 async function navigate(page){
-  state.page=page;setPageTitle(page);$$('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.page===page));
-  root.innerHTML='<div class="panel"><div class="empty"><span class="spinner"></span><strong>Yükleniyor</strong></div></div>';
-  try{
-    const fn={today:renderToday,curriculum:renderCurriculum,planner:renderPlanner,exams:renderExams,questions:renderQuestions,resources:renderResources,archive:renderArchive,review:renderReview,performance:renderPerformance,focus:renderFocus,sleep:renderSleep,badges:renderBadges,aiCoach:renderAI,flashcards:renderAI,testLab:renderAI,aiProgram:renderAI,solver:renderAI,wrongAnalysis:renderAI,duels:renderDuels,settings:renderSettings}[page]||renderToday;
-    await fn();root.classList.remove('page-enter');void root.offsetWidth;root.classList.add('page-enter');
-  }catch(err){console.error(err);if(err.code==='PLAN_REQUIRED'){state.access.hasPaidAccess=false;updateShell();return navigate('settings');}root.innerHTML=`<div class="panel">${empty('Bu bölüm yüklenemedi',err.message,'!')}</div>`;toast(err.message,'error');}
+  state.page = page;
+
+  setPageTitle(page);
+
+  $$('.nav-item').forEach(x => {
+    x.classList.toggle(
+      'active',
+      x.dataset.page === page
+    );
+  });
+
+  root.innerHTML = `
+    <div class="panel">
+      <div class="empty">
+        <span class="spinner"></span>
+        <strong>Yükleniyor</strong>
+      </div>
+    </div>
+  `;
+
+  try {
+    const fn = {
+      today: renderToday,
+      curriculum: renderCurriculum,
+      planner: renderPlanner,
+      exams: renderExams,
+      questions: renderQuestions,
+      resources: renderResources,
+      archive: renderArchive,
+      review: renderReview,
+      performance: renderPerformance,
+      focus: renderFocus,
+      sleep: renderSleep,
+      badges: renderBadges,
+
+      aiCoach: renderAI,
+      flashcards: renderAI,
+      testLab: renderAI,
+      aiProgram: renderAI,
+      recovery: renderAI,
+      solver: renderAI,
+      wrongAnalysis: renderAI,
+
+      duels: renderDuels,
+      settings: renderSettings
+    }[page] || renderToday;
+
+    await fn();
+
+    root.classList.remove('page-enter');
+    void root.offsetWidth;
+    root.classList.add('page-enter');
+
+  } catch (err) {
+    console.error(err);
+
+    if (err.code === 'PLAN_REQUIRED') {
+      state.access.hasPaidAccess = false;
+      updateShell();
+      return navigate('settings');
+    }
+
+    root.innerHTML = `
+      <div class="panel">
+        ${empty(
+          'Bu bölüm yüklenemedi',
+          err.message,
+          '!'
+        )}
+      </div>
+    `;
+
+    toast(err.message, 'error');
+  }
 }
 
 async function ensureCurriculum(force=false){
