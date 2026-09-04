@@ -2535,6 +2535,150 @@ function drawAiTab(){
     p.innerHTML=`<div class="panel-head"><div><span class="eyebrow">7 GÜNLÜK PLAN</span><h3>AI çalışma programı</h3></div></div><form id="programForm" class="compact-form"><label>Günlük yaklaşık çalışma süresi<select name="hoursPerDay"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></label><label>Ek not<textarea name="note" placeholder="Örn. Çarşamba okuldan geç çıkıyorum; matematik önceliğim olsun."></textarea></label><button class="btn primary" type="submit">✦ Program Oluştur</button></form><div id="programResult"></div>`;
     $('#programForm',root).onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.querySelector('button');loading(b,true);try{const f=formDataObject(e.currentTarget),d=await api('/api/ai',{method:'POST',body:JSON.stringify({action:'program',hoursPerDay:Number(f.hoursPerDay),note:f.note})});state.aiProgram=d;$('#programResult',root).innerHTML=`${aiText(d.summary)}<div>${d.days.map(day=>`<div class="program-day"><h4>${fmtDate(day.date)}</h4>${day.tasks.map(t=>`<div class="program-task"><div><b>${esc(t.exam)} · ${esc(t.subject)}</b> · ${esc(t.topic)}<br><small>${esc(t.reason)}</small></div><span class="tag">${t.minutes} dk</span></div>`).join('')}</div>`).join('')}</div><button id="saveAiProgram" class="btn success wide">Bu 7 Günü Programa Ekle</button>`;$('#saveAiProgram',root).onclick=saveAiProgram;}catch(err){toast(err.message,'error');}finally{loading(b,false,'✦ Program Oluştur');}};return;
   }
+ if(state.aiTab === 'recovery'){
+  p.innerHTML = `
+    <div class="panel-head">
+      <div>
+        <span class="eyebrow">BUGÜNÜ KURTAR</span>
+        <h3>Beni Toparla</h3>
+      </div>
+    </div>
+
+    <p class="muted">
+      Düzenin bozulduysa, birkaç gün çalışamadıysan veya
+      nereden başlayacağını bilmiyorsan durumunu anlat.
+      Kayıtlı çalışma verilerin de dikkate alınarak bugüne
+      özel gerçekçi bir toparlanma planı oluşturulur.
+    </p>
+
+    <form id="recoveryForm" class="compact-form">
+
+      <label>
+        Bugün kaç saat ayırabilirsin?
+        <select name="hoursAvailable">
+          <option value="1">1 saat</option>
+          <option value="2">2 saat</option>
+          <option value="3">3 saat</option>
+          <option value="4" selected>4 saat</option>
+          <option value="5">5 saat</option>
+          <option value="6">6 saat</option>
+          <option value="7">7 saat</option>
+          <option value="8">8 saat</option>
+          <option value="9">9 saat</option>
+          <option value="10">10 saat</option>
+          <option value="11">11 saat</option>
+          <option value="12">12 saat</option>
+        </select>
+      </label>
+
+      <label>
+        Ne oldu?
+        <textarea
+          name="message"
+          required
+          maxlength="1800"
+          placeholder="Örn. 4 gündür doğru düzgün çalışamadım. TYT matematiği çok aksattım ve nereden başlayacağımı bilmiyorum. Bugün yeniden düzene girmek istiyorum."
+        ></textarea>
+      </label>
+
+      <button class="btn primary" type="submit">
+        ✦ Beni Toparla
+      </button>
+    </form>
+
+    <div id="recoveryResult"></div>
+  `;
+
+
+  $('#recoveryForm',root).onsubmit = async e => {
+    e.preventDefault();
+
+    const form = e.currentTarget;
+    const button = form.querySelector('button[type="submit"]');
+
+    loading(button,true);
+
+    try {
+      const f = formDataObject(form);
+
+      const d = await api('/api/ai',{
+        method:'POST',
+
+        body:JSON.stringify({
+          action:'recovery',
+          hoursAvailable:Number(f.hoursAvailable),
+          message:f.message
+        })
+      });
+
+
+      $('#recoveryResult',root).innerHTML = `
+        <div class="notice success" style="margin-top:16px">
+          <span class="notice-dot"></span>
+
+          <p>
+            <strong>${esc(d.title || 'Bugünün Toparlanma Planı')}</strong>
+            ${esc(d.totalMinutes || 0)} dakikalık gerçekçi bir plan hazırlandı.
+          </p>
+        </div>
+
+        ${aiText(d.summary)}
+
+        <div>
+          ${(d.tasks || []).map(task => `
+            <div class="program-task">
+              <div>
+                <b>
+                  ${esc(task.exam)} ·
+                  ${esc(task.subject)}
+                </b>
+
+                · ${esc(task.topic)}
+
+                <br>
+
+                <small>
+                  ${esc(task.reason || '')}
+                </small>
+              </div>
+
+              <span class="tag">
+                ${Number(task.minutes) || 0} dk
+              </span>
+            </div>
+          `).join('')}
+        </div>
+
+        ${
+          d.tomorrowNote
+            ? `
+              <div class="notice" style="margin-top:16px">
+                <span class="notice-dot"></span>
+
+                <p>
+                  <strong>Yarın için</strong>
+                  ${esc(d.tomorrowNote)}
+                </p>
+              </div>
+            `
+            : ''
+        }
+      `;
+
+    } catch(err) {
+      toast(err.message,'error');
+
+    } finally {
+      loading(
+        button,
+        false,
+        '✦ Beni Toparla'
+      );
+    }
+  };
+
+  return;
+} 
   if(state.aiTab==='solver'){
     p.innerHTML=`<div class="panel-head"><div><span class="eyebrow">GÖRSELDEN ÇÖZÜM</span><h3>AI Soru Çözücü</h3></div></div><form id="solverForm" class="compact-form"><label>Soru fotoğrafı<input id="solverImage" type="file" accept="image/*" ${state.solveImage?'':'required'}></label>${state.solveImage?`<img id="solverPreview" class="archive-img" style="max-width:420px" src="${state.solveImage}" alt="Seçili soru">`:''}<label>İsteğe bağlı not<textarea name="prompt" placeholder="Örn. Bu soruda neden B seçeneği yanlış?"></textarea></label><button class="btn primary" type="submit">✦ Soruyu Çöz</button></form><div id="solverResult"></div>`;
     $('#solverImage',root).onchange=async e=>{if(!e.target.files[0])return;try{state.solveImage=await compressImage(e.target.files[0],1600,.82);let im=$('#solverPreview',root);if(!im){im=document.createElement('img');im.id='solverPreview';im.className='archive-img';im.style.maxWidth='420px';e.target.closest('label').after(im);}im.src=state.solveImage;}catch(err){toast(err.message,'error');}};
