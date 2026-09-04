@@ -118,14 +118,15 @@ ${OUTPUT_RULES}
 `;
 
 
-async function context(user) {
+async function context(user){
   const [
     performance,
     questions,
     study,
     streak,
     exams,
-    review
+    review,
+    curriculumProgress
   ] = await Promise.all([
     getSubjectPerformance(user.id),
     getQuestionTotals(user.id),
@@ -133,44 +134,39 @@ async function context(user) {
     getStreak(user.id),
 
     query(
-      `
-        SELECT
-          exam_type,
-          exam_name,
-          exam_date::text,
-          total_net,
-          details
-        FROM yks2_exam_results
-        WHERE user_id = $1
-        ORDER BY exam_date DESC, id DESC
-        LIMIT 6
-      `,
+      `SELECT exam_type,exam_name,exam_date::text,total_net,details
+       FROM yks2_exam_results
+       WHERE user_id=$1
+       ORDER BY exam_date DESC,id DESC
+       LIMIT 6`,
       [user.id]
     ),
 
     query(
-      `
-        SELECT
-          exam,
-          subject,
-          topic_id
-        FROM yks2_curriculum_progress
-        WHERE user_id = $1
-          AND review_needed = true
-        ORDER BY updated_at DESC
-        LIMIT 30
-      `,
+      `SELECT exam,subject,topic_id
+       FROM yks2_curriculum_progress
+       WHERE user_id=$1
+         AND review_needed=true
+       ORDER BY updated_at DESC
+       LIMIT 30`,
+      [user.id]
+    ),
+
+    query(
+      `SELECT exam,subject,topic_id,completed,review_needed
+       FROM yks2_curriculum_progress
+       WHERE user_id=$1`,
       [user.id]
     )
   ]);
 
   return {
-    profile: {
-      track: user.track,
-      targetCity: user.target_city,
-      targetUniversity: user.target_university,
-      targetDepartment: user.target_department,
-      targetRank: user.target_rank
+    profile:{
+      track:user.track,
+      targetCity:user.target_city,
+      targetUniversity:user.target_university,
+      targetDepartment:user.target_department,
+      targetRank:user.target_rank
     },
 
     performance,
@@ -178,8 +174,10 @@ async function context(user) {
     study,
     streak,
 
-    recentExams: exams.rows,
-    reviewList: review.rows
+    recentExams:exams.rows,
+    reviewList:review.rows,
+
+    curriculumProgress:curriculumProgress.rows
   };
 }
 
