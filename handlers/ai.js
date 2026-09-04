@@ -1831,7 +1831,7 @@ Bu bir KURTARMA PLANI'dır.
 ${JSON.stringify(ctx)}
 
 TAKİP MÜFREDATI:
-${JSON.stringify(curriculumLabels)}
+${JSON.stringify(availableCurriculumLabels)}
 `,
 
       input:
