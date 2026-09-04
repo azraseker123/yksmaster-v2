@@ -25,7 +25,9 @@ const DAILY_LIMITS = {
   test: 15,
   program: 3,
   wrong_analysis: 5,
-  solve_image: 15
+  solve_image: 15,
+  recovery: 3,
+  exam_analysis: 5
 };
 
 
