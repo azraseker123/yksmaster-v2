@@ -13,10 +13,29 @@ const state = {
 };
 
 const titles = {
-  today:['BUGÜN','Kontrol Merkezi'], curriculum:['MÜFREDAT','2026 YKS Müfredat Takibi'], planner:['PLAN','Çalışma Programı'],
-  exams:['DENEME','Deneme Takibi'], questions:['SORU','Soru Takibi'], resources:['KAYNAK','Kaynak Takibi'], archive:['ARŞİV','Dijital Yanlış Soru Arşivi'],
-  review:['TEKRAR','Tekrar Listesi'], performance:['ANALİZ','Ders Bazlı Performans'], focus:['ODAK','Pomodoro & Çalışma'], sleep:['UYKU','Uyku Takibi'],
-  badges:['ROZET','Başarı Rozetleri'], aiCoach:['AI PRO','AI Koç'], flashcards:['AI PRO','Flashcard'], testLab:['AI PRO','Test Lab'], aiProgram:['AI PRO','AI Çalışma Programı'], solver:['AI PRO','Soru Çözücü'], wrongAnalysis:['AI PRO','Yanlış Analizi'], duels:['DÜELLO','Düello & Liderlik'], settings:['HESAP','Ayarlar & Paket']
+  today: ['BUGÜN', 'Kontrol Merkezi'],
+  curriculum: ['MÜFREDAT', '2026 YKS Müfredat Takibi'],
+  planner: ['PLAN', 'Çalışma Programı'],
+  exams: ['DENEME', 'Deneme Takibi'],
+  questions: ['SORU', 'Soru Takibi'],
+  resources: ['KAYNAK', 'Kaynak Takibi'],
+  archive: ['ARŞİV', 'Dijital Yanlış Soru Arşivi'],
+  review: ['TEKRAR', 'Tekrar Listesi'],
+  performance: ['ANALİZ', 'Ders Bazlı Performans'],
+  focus: ['ODAK', 'Pomodoro & Çalışma'],
+  sleep: ['UYKU', 'Uyku Takibi'],
+  badges: ['ROZET', 'Başarı Rozetleri'],
+
+  aiCoach: ['AI PRO', 'AI Koç'],
+  flashcards: ['AI PRO', 'Flashcard'],
+  testLab: ['AI PRO', 'Test Lab'],
+  aiProgram: ['AI PRO', 'AI Çalışma Programı'],
+  recovery: ['AI PRO', 'Beni Toparla'],
+  solver: ['AI PRO', 'Soru Çözücü'],
+  wrongAnalysis: ['AI PRO', 'Yanlış Analizi'],
+
+  duels: ['DÜELLO', 'Düello & Liderlik'],
+  settings: ['HESAP', 'Ayarlar & Paket']
 };
 
 function esc(v=''){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
