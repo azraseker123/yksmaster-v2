@@ -2414,19 +2414,103 @@ function aiText(v){
   return `<div class="ai-result">${esc(cleanAiText(v||''))}</div>`;
 }
 async function renderAI(){
-  if(!state.access?.isPro){root.innerHTML=`<div class="lock-screen"><div class="lock-icon">✦</div><h2>AI Pro özelliği</h2><p>AI Koç, Flashcard, Test Lab, AI programı, fotoğraftan soru çözme ve yanlış analizi AI Pro paketine dahildir.</p><button class="btn primary" data-upgrade>AI Pro'yu Gör</button></div>`;$('[data-upgrade]',root).onclick=()=>navigate('settings');return;}
+  if(!state.access?.isPro){
+    root.innerHTML = `
+      <div class="lock-screen">
+        <div class="lock-icon">✦</div>
+        <h2>AI Pro özelliği</h2>
+        <p>
+          AI Koç, Flashcard, Test Lab, AI Programı,
+          Beni Toparla, fotoğraftan soru çözme ve
+          yanlış analizi AI Pro paketine dahildir.
+        </p>
+        <button class="btn primary" data-upgrade>
+          AI Pro'yu Gör
+        </button>
+      </div>
+    `;
+
+    $('[data-upgrade]',root).onclick = () => navigate('settings');
+    return;
+  }
+
   await ensureCurriculum();
-  const pageToTab={aiCoach:'coach',flashcards:'flashcards',testLab:'test',aiProgram:'program',solver:'solver',wrongAnalysis:'analysis'};
-  const meta={
-    coach:['AI KOÇ','Kişisel YKS Koçun','Hedef profilin ve kayıtlı çalışma verilerin üzerinden soru sor, durumunu değerlendir ve yönlendirme al.'],
-    flashcards:['FLASHCARD','AI Flashcard','Ders ve konu seç; seçtiğin 2026 YKS kapsamından çalışma kartları üret.'],
-    test:['TEST LAB','AI Test Lab','Ders ve konu seç; YKS odaklı mini test oluştur ve sonucunu anında gör.'],
-    program:['AI PROGRAM','7 Günlük AI Programı','Hedeflerin, performansın, denemelerin ve tekrar listen üzerinden 7 günlük program oluştur.'],
-    solver:['SORU ÇÖZÜCÜ','Fotoğraftan Soru Çözümü','Soru fotoğrafını gönder; AI çözümü adım adım açıklasın.'],
-    analysis:['YANLIŞ ANALİZİ','AI Yanlış Analizi','Kayıtlı soru verileri ve yanlış arşivinden hangi alanlara öncelik vermen gerektiğini analiz et.']
+
+  const pageToTab = {
+    aiCoach: 'coach',
+    flashcards: 'flashcards',
+    testLab: 'test',
+    aiProgram: 'program',
+    recovery: 'recovery',
+    solver: 'solver',
+    wrongAnalysis: 'analysis'
   };
-  state.aiTab=pageToTab[state.page]||'coach';const m=meta[state.aiTab];
-  root.innerHTML=`<div class="section-title"><div><span class="eyebrow">${m[0]}</span><h1>${m[1]}</h1><p>${m[2]}</p></div><span class="tag">AI PRO</span></div><article id="aiPanel" class="panel ai-panel"></article>`;
+
+  const meta = {
+    coach: [
+      'AI KOÇ',
+      'Kişisel YKS Koçun',
+      'Hedef profilin ve kayıtlı çalışma verilerin üzerinden soru sor, durumunu değerlendir ve yönlendirme al.'
+    ],
+
+    flashcards: [
+      'FLASHCARD',
+      'AI Flashcard',
+      'Ders ve konu seç; seçtiğin YKS kapsamından çalışma kartları üret.'
+    ],
+
+    test: [
+      'TEST LAB',
+      'AI Test Lab',
+      'Ders ve konu seç; YKS odaklı mini test oluştur ve sonucunu anında gör.'
+    ],
+
+    program: [
+      'AI PROGRAM',
+      '7 Günlük AI Programı',
+      'Hedeflerin, performansın, denemelerin ve tekrar listen üzerinden 7 günlük program oluştur.'
+    ],
+
+    recovery: [
+      'BENİ TOPARLA',
+      'Beni Toparla',
+      'Düzenin bozulduysa veya birkaç gün çalışamadıysan durumunu anlat; AI kayıtlı verilerini kullanarak bugüne özel gerçekçi bir toparlanma planı oluştursun.'
+    ],
+
+    solver: [
+      'SORU ÇÖZÜCÜ',
+      'Fotoğraftan Soru Çözümü',
+      'Soru fotoğrafını gönder; AI çözümü adım adım açıklasın.'
+    ],
+
+    analysis: [
+      'YANLIŞ ANALİZİ',
+      'AI Yanlış Analizi',
+      'Kayıtlı soru verileri ve yanlış arşivinden hangi alanlara öncelik vermen gerektiğini analiz et.'
+    ]
+  };
+
+  state.aiTab = pageToTab[state.page] || 'coach';
+
+  const m = meta[state.aiTab];
+
+  root.innerHTML = `
+    <div class="section-title">
+      <div>
+        <span class="eyebrow">${m[0]}</span>
+        <h1>${m[1]}</h1>
+        <p>${m[2]}</p>
+      </div>
+
+      <span class="tag">AI PRO</span>
+    </div>
+
+    <article
+      id="aiPanel"
+      class="panel ai-panel">
+    </article>
+  `;
+
   drawAiTab();
 }
 
