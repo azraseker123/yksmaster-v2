@@ -1367,7 +1367,7 @@ ${dates.join(', ')}
 ${JSON.stringify(ctx)}
 
 DERS VE KONU LİSTESİ:
-${JSON.stringify(curriculumLabels)}
+${JSON.stringify(availableCurriculumLabels)}
 
 ÇOK ÖNEMLİ:
 - Sadece öğrencinin alanına uygun TYT ve AYT derslerini kullan.
