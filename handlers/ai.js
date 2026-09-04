@@ -1531,6 +1531,603 @@ ${note || 'Özel isteği yok.'}`,
         GEMINI_FAST_MODEL
     });
 }
+/*
+  BENİ TOPARLA
+*/
+if (action === 'recovery') {
+  const hours =
+    int(
+      req.body?.hoursAvailable,
+      1,
+      12
+    ) || 4;
+
+  const message =
+    text(
+      req.body?.message,
+      1800
+    );
+
+  if (!message) {
+    return res.status(400).json({
+      error:
+        'Durumunu kısaca anlatman gerekiyor.'
+    });
+  }
+
+  /*
+    Beni Toparla'nın amacı normal bir haftalık
+    program üretmek değil.
+
+    Öğrencinin bugün yeniden düzene girmesi için
+    uygulanabilir bir kurtarma planı üretmek.
+  */
+  const targetMinutes = hours * 60;
+
+  const minTasks =
+    hours <= 3
+      ? 3
+      : hours <= 6
+        ? 4
+        : 5;
+
+  const maxTasks =
+    hours <= 3
+      ? 4
+      : hours <= 6
+        ? 6
+        : 8;
+
+
+  const schema = {
+    type: 'object',
+
+    properties: {
+      title: {
+        type: 'string'
+      },
+
+      summary: {
+        type: 'string'
+      },
+
+      tasks: {
+        type: 'array',
+        minItems: minTasks,
+        maxItems: maxTasks,
+
+        items: {
+          type: 'object',
+
+          properties: {
+            exam: {
+              type: 'string',
+              enum: [
+                'TYT',
+                'AYT'
+              ]
+            },
+
+            subject: {
+              type: 'string'
+            },
+
+            topic: {
+              type: 'string'
+            },
+
+            priority: {
+              type: 'string',
+              enum: [
+                'high',
+                'medium',
+                'low'
+              ]
+            },
+
+            reason: {
+              type: 'string'
+            }
+          },
+
+          required: [
+            'exam',
+            'subject',
+            'topic',
+            'priority',
+            'reason'
+          ]
+        }
+      },
+
+      tomorrowNote: {
+        type: 'string'
+      }
+    },
+
+    required: [
+      'title',
+      'summary',
+      'tasks',
+      'tomorrowNote'
+    ]
+  };
+
+
+  const raw =
+    await geminiText({
+      userId:
+        user.id,
+
+      action,
+
+      /*
+        Bu özellik program mantığına benzediği
+        için önce hızlı/ucuz modeli kullanıyoruz.
+      */
+      model:
+        GEMINI_FAST_MODEL,
+
+      systemInstruction:
+        `${SYSTEM}
+
+Sen "Beni Toparla" modusun.
+
+AMAÇ:
+Düzeni bozulmuş, birkaç gün çalışamamış,
+programından geri kalmış veya bugün ne
+yapacağını bilemeyen bir YKS öğrencisini
+gerçekçi biçimde yeniden düzene sok.
+
+Bu normal bir çalışma programı değildir.
+Bu bir KURTARMA PLANI'dır.
+
+Öğrencinin bugün yaklaşık ${hours} saat zamanı var.
+
+ÇOK ÖNEMLİ KURALLAR:
+- Öğrencinin kaçırdığı bütün çalışmaları tek güne sıkıştırma.
+- "Kaybettiğin zamanı telafi et" mantığıyla aşırı görev verme.
+- Öğrenciyi cezalandıran veya suçlayan bir dil kullanma.
+- Önce en kritik açıkları seç.
+- Bugün tamamlanabilecek gerçekçi görevler üret.
+- Öğrencinin kendi mesajını en yüksek öncelikli veri kabul et.
+- Ardından tekrar listesi, son denemeler, soru performansı ve çalışma verilerini kullan.
+- Kullanıcının özellikle söylediği dersleri önceliklendir.
+- Kullanıcı belirli bir dersin aksadığını söylüyorsa bu dersi plana yansıt.
+- Verilerde olmayan bir eksikliği varmış gibi uydurma.
+- Ders ve konu isimlerini yalnızca verilen takip müfredatından seç.
+- Her görev için neden seçildiğini reason alanında açıkla.
+- Dakika üretme. Dakikaları backend hesaplayacak.
+- Aynı konuyu gereksiz yere birden fazla göreve bölme.
+- Plan mümkün olduğunca çeşitli fakat dağınık olmayan bir yapıda olsun.
+- summary kısa biçimde bugünün stratejisini anlatsın.
+- tomorrowNote öğrencinin yarın ne yapması gerektiğini 1-3 cümlede söylesin.
+
+ÖNCELİK SIRASI:
+1. Öğrencinin bu mesajda anlattığı problem
+2. Tekrar gereken konular
+3. Son denemelerdeki zayıflıklar
+4. Soru performansı
+5. Son çalışma düzeni
+6. Hedefleri
+
+ÖĞRENCİ VERİLERİ:
+${JSON.stringify(ctx)}
+
+TAKİP MÜFREDATI:
+${JSON.stringify(curriculumLabels)}
+`,
+
+      input:
+        `Öğrencinin durumu:
+${message}
+
+Bugün ayırabileceği süre:
+${hours} saat
+
+Bugün öğrenciyi yeniden düzene sokacak
+kurtarma görevlerini oluştur.`,
+
+      responseSchema:
+        schema
+    });
+
+
+  const recovery =
+    parseStructured(raw);
+
+
+  /*
+    Görevleri resmi müfredat adlarıyla
+    doğrula ve canonical hale getir.
+  */
+  const cleanedTasks = [];
+
+  for (
+    const rawTask of
+    Array.isArray(recovery.tasks)
+      ? recovery.tasks
+      : []
+  ) {
+    const exam =
+      text(
+        rawTask?.exam,
+        3
+      ).toUpperCase();
+
+    const subject =
+      text(
+        rawTask?.subject,
+        100
+      );
+
+    const topic =
+      text(
+        rawTask?.topic,
+        180
+      );
+
+    if (
+      !['TYT', 'AYT'].includes(exam)
+    ) {
+      throw Object.assign(
+        new Error(
+          'Beni Toparla planındaki sınav türü doğrulanamadı.'
+        ),
+        { status: 502 }
+      );
+    }
+
+
+    const canonicalSubject =
+      findCanonicalSubject(
+        curriculum,
+        exam,
+        subject
+      );
+
+
+    if (!canonicalSubject) {
+      console.warn(
+        '[AI RECOVERY] Subject mismatch:',
+        {
+          exam,
+          received: subject
+        }
+      );
+
+      throw Object.assign(
+        new Error(
+          'Beni Toparla planındaki bir ders takip müfredatıyla eşleşmedi. Yeniden dene.'
+        ),
+        { status: 502 }
+      );
+    }
+
+
+    const allowedTopics =
+      curriculum[exam]?.[
+        canonicalSubject
+      ] || [];
+
+
+    const canonicalTopic =
+      findCanonicalTopic(
+        allowedTopics,
+        topic
+      );
+
+
+    if (!canonicalTopic) {
+      console.warn(
+        '[AI RECOVERY] Topic mismatch:',
+        {
+          exam,
+          subject:
+            canonicalSubject,
+          received: topic
+        }
+      );
+
+      throw Object.assign(
+        new Error(
+          'Beni Toparla planındaki bir konu takip müfredatıyla eşleşmedi. Yeniden dene.'
+        ),
+        { status: 502 }
+      );
+    }
+
+
+    cleanedTasks.push({
+      exam,
+
+      subject:
+        canonicalSubject,
+
+      topic:
+        canonicalTopic.name,
+
+      priority:
+        ['high', 'medium', 'low']
+          .includes(rawTask?.priority)
+            ? rawTask.priority
+            : 'medium',
+
+      reason:
+        text(
+          rawTask?.reason,
+          500
+        )
+    });
+  }
+
+
+  if (
+    cleanedTasks.length < minTasks ||
+    cleanedTasks.length > maxTasks
+  ) {
+    throw Object.assign(
+      new Error(
+        'Beni Toparla planındaki görev sayısı doğrulanamadı. Yeniden dene.'
+      ),
+      { status: 502 }
+    );
+  }
+
+
+  /*
+    Süreleri AI'a bırakmıyoruz.
+    AI yalnızca görev ve öncelik seçiyor.
+  */
+  const priorityWeight = {
+    high: 1.45,
+    medium: 1,
+    low: 0.72
+  };
+
+
+  const getRecoveryRules = task => {
+    const label =
+      normalizeProgramLabel(
+        `${task.subject} ${task.topic}`
+      );
+
+
+    if (
+      label.includes('paragraf')
+    ) {
+      return {
+        min: 25,
+        max: 40
+      };
+    }
+
+
+    if (
+      label.includes('matematik')
+    ) {
+      return {
+        min: 45,
+        max: 90
+      };
+    }
+
+
+    if (
+      label.includes('geometri') ||
+      label.includes('ucgen')
+    ) {
+      return {
+        min: 40,
+        max: 75
+      };
+    }
+
+
+    return {
+      min: 30,
+      max: 70
+    };
+  };
+
+
+  const weighted =
+    cleanedTasks.map(task => {
+      const rules =
+        getRecoveryRules(task);
+
+      return {
+        task,
+
+        weight:
+          priorityWeight[
+            task.priority
+          ] || 1,
+
+        min:
+          rules.min,
+
+        max:
+          rules.max
+      };
+    });
+
+
+  const totalWeight =
+    weighted.reduce(
+      (sum, x) =>
+        sum + x.weight,
+      0
+    ) || 1;
+
+
+  weighted.forEach(x => {
+    let minutes =
+      Math.round(
+        (
+          targetMinutes *
+          x.weight /
+          totalWeight
+        ) / 5
+      ) * 5;
+
+
+    minutes =
+      Math.max(
+        x.min,
+        Math.min(
+          x.max,
+          minutes
+        )
+      );
+
+
+    x.minutes =
+      minutes;
+  });
+
+
+  /*
+    Hedef süreye mümkün olduğunca yaklaş.
+  */
+  let currentTotal =
+    weighted.reduce(
+      (sum, x) =>
+        sum + x.minutes,
+      0
+    );
+
+
+  let safety = 0;
+
+
+  while (
+    currentTotal <
+      targetMinutes - 5 &&
+    safety < 500
+  ) {
+    safety++;
+
+
+    const candidates =
+      weighted
+        .filter(
+          x =>
+            x.minutes + 5 <= x.max
+        )
+        .sort(
+          (a, b) =>
+            (
+              b.weight *
+              (b.max - b.minutes)
+            ) -
+            (
+              a.weight *
+              (a.max - a.minutes)
+            )
+        );
+
+
+    if (!candidates.length) {
+      break;
+    }
+
+
+    candidates[0].minutes += 5;
+    currentTotal += 5;
+  }
+
+
+  safety = 0;
+
+
+  while (
+    currentTotal >
+      targetMinutes + 5 &&
+    safety < 500
+  ) {
+    safety++;
+
+
+    const candidates =
+      weighted
+        .filter(
+          x =>
+            x.minutes - 5 >= x.min
+        )
+        .sort(
+          (a, b) =>
+            a.weight - b.weight
+        );
+
+
+    if (!candidates.length) {
+      break;
+    }
+
+
+    candidates[0].minutes -= 5;
+    currentTotal -= 5;
+  }
+
+
+  const tasks =
+    weighted.map(x => ({
+      exam:
+        x.task.exam,
+
+      subject:
+        x.task.subject,
+
+      topic:
+        x.task.topic,
+
+      minutes:
+        x.minutes,
+
+      reason:
+        x.task.reason
+    }));
+
+
+  return res
+    .status(200)
+    .json({
+      title:
+        text(
+          recovery.title,
+          160
+        ) ||
+        'Bugünün Toparlanma Planı',
+
+      summary:
+        text(
+          recovery.summary,
+          1600
+        ),
+
+      hoursAvailable:
+        hours,
+
+      totalMinutes:
+        tasks.reduce(
+          (sum, task) =>
+            sum + task.minutes,
+          0
+        ),
+
+      tasks,
+
+      tomorrowNote:
+        text(
+          recovery.tomorrowNote,
+          800
+        ),
+
+      model:
+        GEMINI_FAST_MODEL
+    });
+}
     /*
       YANLIŞ ANALİZİ
     */
