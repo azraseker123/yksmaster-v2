@@ -317,7 +317,121 @@ function normalizeProgramLabel(value = '') {
     .replace(/\s+/g, ' ')
     .trim();
 }
+function getCurriculumProgressState(ctx) {
+  const rows = Array.isArray(ctx?.curriculumProgress)
+    ? ctx.curriculumProgress
+    : [];
 
+  const completed = new Set();
+  const reviewNeeded = new Set();
+
+  for (const row of rows) {
+    const exam = String(row?.exam || '').toUpperCase();
+    const subject = normalizeProgramLabel(row?.subject);
+    const topicId = String(row?.topic_id || '');
+
+    if (!exam || !subject || !topicId) continue;
+
+    const key = `${exam}|${subject}|${topicId}`;
+
+    if (row.completed === true) {
+      completed.add(key);
+    }
+
+    if (row.review_needed === true) {
+      reviewNeeded.add(key);
+    }
+  }
+
+  return {
+    completed,
+    reviewNeeded
+  };
+}
+
+
+function curriculumTopicKey(exam, subject, topic) {
+  return [
+    String(exam || '').toUpperCase(),
+    normalizeProgramLabel(subject),
+    String(topic?.id || '')
+  ].join('|');
+}
+
+
+function buildAvailableCurriculum(curriculum, ctx) {
+  const {
+    completed,
+    reviewNeeded
+  } = getCurriculumProgressState(ctx);
+
+  const available = {
+    TYT: {},
+    AYT: {}
+  };
+
+  for (const exam of ['TYT', 'AYT']) {
+    for (
+      const [subject, topics]
+      of Object.entries(curriculum[exam] || {})
+    ) {
+      available[exam][subject] = topics
+        .filter(topic => {
+          const key =
+            curriculumTopicKey(
+              exam,
+              subject,
+              topic
+            );
+
+          /*
+            Tamamlanmış konu normal yeni çalışma
+            konusu olarak tekrar seçilmez.
+
+            Ancak tekrar listesine özellikle
+            düşmüşse tekrar çalışması için
+            kullanılabilir.
+          */
+          if (
+            completed.has(key) &&
+            !reviewNeeded.has(key)
+          ) {
+            return false;
+          }
+
+          return true;
+        })
+        .map(topic => topic.name);
+    }
+  }
+
+  return available;
+}
+
+
+function isCompletedWithoutReview(
+  ctx,
+  exam,
+  subject,
+  topic
+) {
+  const {
+    completed,
+    reviewNeeded
+  } = getCurriculumProgressState(ctx);
+
+  const key =
+    curriculumTopicKey(
+      exam,
+      subject,
+      topic
+    );
+
+  return (
+    completed.has(key) &&
+    !reviewNeeded.has(key)
+  );
+}
 
 function findCanonicalSubject(curriculum, exam, subject) {
   const subjects =
