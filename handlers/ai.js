@@ -525,7 +525,7 @@ function validateProgram(
   curriculum,
   dates,
   ctx
-)
+) {
   if (
     !data ||
     !Array.isArray(data.days) ||
