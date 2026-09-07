@@ -178,3 +178,9 @@
     grid-template-columns:1fr;
   }
 }
+.brand-logo{
+  width:180px;
+  height:auto;
+  display:block;
+  object-fit:contain;
+}
