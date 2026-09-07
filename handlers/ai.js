@@ -502,8 +502,9 @@ function findCanonicalTopic(topics, topic) {
 function validateProgram(
   data,
   curriculum,
-  dates
-) {
+  dates,
+  ctx
+)
   if (
     !data ||
     !Array.isArray(data.days) ||
@@ -667,7 +668,34 @@ function validateProgram(
           { status: 502 }
         );
       }
+      /*
+        Tamamlanmış ve tekrar gerektirmeyen
+        konuyu backend kabul etmez.
+      */
+      if (
+        isCompletedWithoutReview(
+          ctx,
+          task.exam,
+          canonicalSubject,
+          canonicalTopic
+        )
+      ) {
+        console.warn(
+          '[AI PROGRAM] Completed topic rejected:',
+          {
+            exam: task.exam,
+            subject: canonicalSubject,
+            topic: canonicalTopic.name
+          }
+        );
 
+        throw Object.assign(
+          new Error(
+            `AI programı tamamlanmış "${canonicalTopic.name}" konusunu yeniden seçti. Lütfen programı yeniden oluştur.`
+          ),
+          { status: 502 }
+        );
+      }
 
       /*
         Kullanıcıya AI'ın yaklaşık yazdığı isim
