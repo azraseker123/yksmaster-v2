@@ -1658,12 +1658,13 @@ ${note || 'Özel isteği yok.'}`,
   }
 
 
-  const validated =
-    validateProgram(
-      plan,
-      curriculum,
-      dates
-    );
+ const validated =
+  validateProgram(
+    plan,
+    curriculum,
+    dates,
+    ctx
+  );
 
 
   return res
