@@ -1981,7 +1981,34 @@ kurtarma görevlerini oluştur.`,
         { status: 502 }
       );
     }
+    /*
+      Tamamlanmış ve tekrar gerektirmeyen
+      konuyu Beni Toparla da kabul etmez.
+    */
+    if (
+      isCompletedWithoutReview(
+        ctx,
+        exam,
+        canonicalSubject,
+        canonicalTopic
+      )
+    ) {
+      console.warn(
+        '[AI RECOVERY] Completed topic rejected:',
+        {
+          exam,
+          subject: canonicalSubject,
+          topic: canonicalTopic.name
+        }
+      );
 
+      throw Object.assign(
+        new Error(
+          `Beni Toparla tamamlanmış "${canonicalTopic.name}" konusunu yeniden seçti. Lütfen yeniden dene.`
+        ),
+        { status: 502 }
+      );
+    }
 
     cleanedTasks.push({
       exam,
