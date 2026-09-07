@@ -453,7 +453,9 @@ function findCanonicalTopic(topics, topic) {
 
   if (!wanted) return null;
 
-  // Önce tamamen aynı olanı bul.
+  /*
+    1. Önce resmi adla tamamen aynı mı?
+  */
   const exact =
     topics.find(
       t =>
@@ -464,15 +466,34 @@ function findCanonicalTopic(topics, topic) {
 
 
   /*
-    AI bazen resmi konu adına küçük bir ekleme
-    yapabiliyor.
+    2. Gemini'nin kullanabileceği yaygın
+    kısa konu adlarını resmi müfredat
+    adına eşleştir.
+  */
+  const topicAliases = {
+    'logaritma': 'logaritmik fonksiyonlar'
+  };
 
-    Örneğin:
-    "Fonksiyonlar konusu"
-    "Paragrafta Anlam"
-    gibi.
+  const alias =
+    topicAliases[wanted];
 
-    Yalnızca tek bir açık eşleşme varsa kabul et.
+  if (alias) {
+    const aliasMatch =
+      topics.find(
+        t =>
+          normalizeProgramLabel(t.name) === alias
+      );
+
+    if (aliasMatch) {
+      return aliasMatch;
+    }
+  }
+
+
+  /*
+    3. AI resmi konu adına küçük bir
+    ekleme/çıkarma yaptıysa ve yalnızca
+    TEK açık eşleşme varsa kabul et.
   */
   const possible =
     topics.filter(t => {
