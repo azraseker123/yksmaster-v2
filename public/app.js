@@ -289,7 +289,7 @@ async function navigate(page){
       recovery: renderAI,
       solver: renderAI,
       wrongAnalysis: renderAI,
-
+examAnalysis: renderAI,
       duels: renderDuels,
       settings: renderSettings
     }[page] || renderToday;
