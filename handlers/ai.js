@@ -2322,6 +2322,158 @@ kurtarma görevlerini oluştur.`,
     });
 }
     /*
+  DENEME ANALİZİ
+*/
+if (action === 'exam_analysis') {
+  const examId = int(
+    req.body?.examId,
+    1,
+    999999999999
+  );
+
+  if (!examId) {
+    return res.status(400).json({
+      error: 'Geçerli bir deneme seç.'
+    });
+  }
+
+  const selectedResult = await query(
+    `
+      SELECT
+        id,
+        exam_type,
+        exam_name,
+        exam_date::text,
+        details,
+        total_net
+      FROM yks2_exam_results
+      WHERE id = $1
+        AND user_id = $2
+      LIMIT 1
+    `,
+    [examId, user.id]
+  );
+
+  const selectedExam =
+    selectedResult.rows[0];
+
+  if (!selectedExam) {
+    return res.status(404).json({
+      error: 'Deneme bulunamadı.'
+    });
+  }
+
+  const previousResult = await query(
+    `
+      SELECT
+        id,
+        exam_type,
+        exam_name,
+        exam_date::text,
+        details,
+        total_net
+      FROM yks2_exam_results
+      WHERE user_id = $1
+        AND exam_type = $2
+        AND (
+          exam_date < $3::date
+          OR (
+            exam_date = $3::date
+            AND id < $4
+          )
+        )
+      ORDER BY exam_date DESC, id DESC
+      LIMIT 1
+    `,
+    [
+      user.id,
+      selectedExam.exam_type,
+      selectedExam.exam_date,
+      selectedExam.id
+    ]
+  );
+
+  const previousExam =
+    previousResult.rows[0] || null;
+
+  const recentResult = await query(
+    `
+      SELECT
+        exam_name,
+        exam_date::text,
+        total_net,
+        details
+      FROM yks2_exam_results
+      WHERE user_id = $1
+        AND exam_type = $2
+        AND id <> $3
+      ORDER BY exam_date DESC, id DESC
+      LIMIT 7
+    `,
+    [
+      user.id,
+      selectedExam.exam_type,
+      selectedExam.id
+    ]
+  );
+
+  const answer =
+    await geminiText({
+      userId: user.id,
+      action,
+      model: GEMINI_MODEL,
+
+      systemInstruction:
+        `${SYSTEM}
+
+Bu özellik öğrencinin seçtiği YKS denemesini analiz eder.
+
+KURALLAR:
+- Yalnızca verilen gerçek verileri kullan.
+- Öğrencinin neden yanlış yaptığını kesinmiş gibi uydurma.
+- Seçilen denemenin toplam netini ve ders bazlı sonuçlarını değerlendir.
+- Aynı sınav türündeki önceki deneme varsa karşılaştır.
+- Önceki deneme yoksa karşılaştırma yapma ve bunu açıkça belirt.
+- Ders bazında doğru, yanlış, boş ve net durumuna dikkat et.
+- Güçlü alanları belirt.
+- En çok geliştirilmesi gereken alanları belirt.
+- En önemli 3 çalışma önceliğini çıkar.
+- Her öncelik için uygulanabilir çalışma önerisi ver.
+- Sonunda bir sonraki denemeye kadar kısa bir çalışma odağı oluştur.
+- Veride konu bilgisi yoksa belirli bir konu uydurma.
+- Genel motivasyon konuşması yapma.
+
+YANIT DÜZENİ:
+Genel Durum
+Önceki Denemeye Göre
+Güçlü Alanlar
+Dikkat Gerektiren Alanlar
+En Önemli 3 Öncelik
+Bir Sonraki Denemeye Kadar
+`,
+
+      input:
+        `SEÇİLEN DENEME:
+${JSON.stringify(selectedExam)}
+
+ÖNCEKİ AYNI TÜR DENEME:
+${JSON.stringify(previousExam)}
+
+SON DİĞER DENEMELER:
+${JSON.stringify(recentResult.rows)}
+
+ÖĞRENCİNİN GENEL PERFORMANS VERİLERİ:
+${JSON.stringify(ctx)}`
+    });
+
+  return res
+    .status(200)
+    .json({
+      answer,
+      model: GEMINI_MODEL
+    });
+}
+    /*
       YANLIŞ ANALİZİ
     */
     if (
