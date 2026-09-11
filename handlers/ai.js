@@ -2492,6 +2492,7 @@ KURALLAR:
 - Ders içinde hangi konu veya soru tipinin sorunlu olduğu veride yoksa bunu tahmin etme.
 - "Paragraf", "problem", "işlem hatası", "konu eksiği" gibi neden veya alt alan isimlerini veri desteklemiyorsa kullanma.
 - Önerileri yalnızca ders düzeyinde ve mevcut doğru/yanlış/boş verilerine dayandır.
+- Veride yanlış soruların konu bilgisi yoksa "konu başlıklarını gözden geçir", "konu tekrarı yap" veya benzeri öneriler verme; yalnızca yanlış yapılan soruların incelenmesini öner.
 
 YANIT DÜZENİ:
 Genel Durum
