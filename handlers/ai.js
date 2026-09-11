@@ -2499,8 +2499,8 @@ En Önemli 3 Öncelik
 Bir Sonraki Denemeye Kadar
 `,
 
-      input:
-      SEÇİLEN DENEME:
+     input:
+  `SEÇİLEN DENEME:
 ${JSON.stringify(selectedExamForAI)}
 
 ÖNCEKİ AYNI TÜR DENEME:
@@ -2511,8 +2511,7 @@ ${JSON.stringify(recentResult.rows)}
 
 ÖĞRENCİNİN GENEL PERFORMANS VERİLERİ:
 ${JSON.stringify(ctx)}`
-    });
-
+});
   return res
     .status(200)
     .json({
