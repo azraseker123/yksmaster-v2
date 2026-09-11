@@ -2489,6 +2489,9 @@ KURALLAR:
 - status "no_data" olan dersleri 0 net veya çözülmemiş olarak yorumlama.
 - status "no_data" olan derslerde yalnızca "kayıtlı veri yok" de.
 - Veri olmayan bir dersten çalışma önceliği veya önerisi çıkarma.
+- Ders içinde hangi konu veya soru tipinin sorunlu olduğu veride yoksa bunu tahmin etme.
+- "Paragraf", "problem", "işlem hatası", "konu eksiği" gibi neden veya alt alan isimlerini veri desteklemiyorsa kullanma.
+- Önerileri yalnızca ders düzeyinde ve mevcut doğru/yanlış/boş verilerine dayandır.
 
 YANIT DÜZENİ:
 Genel Durum
