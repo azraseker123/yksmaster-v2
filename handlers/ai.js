@@ -2395,7 +2395,50 @@ if (action === 'exam_analysis') {
 
   const previousExam =
     previousResult.rows[0] || null;
+const withCalculatedNets = exam => {
+  if (!exam) return null;
 
+  const details = exam.details || {};
+  const cleanDetails = {};
+
+  for (const [subject, value] of Object.entries(details)) {
+    if (!value || typeof value !== 'object') continue;
+
+    const correct = Number(value.correct || 0);
+    const wrong = Number(value.wrong || 0);
+    const blank = Number(value.blank || 0);
+
+    const total = correct + wrong + blank;
+
+    if (total <= 0) {
+      cleanDetails[subject] = {
+        status: 'no_data'
+      };
+      continue;
+    }
+
+    cleanDetails[subject] = {
+      correct,
+      wrong,
+      blank,
+      net: Number(
+        (correct - wrong / 4).toFixed(2)
+      ),
+      status: 'has_data'
+    };
+  }
+
+  return {
+    ...exam,
+    details: cleanDetails
+  };
+};
+
+const selectedExamForAI =
+  withCalculatedNets(selectedExam);
+
+const previousExamForAI =
+  withCalculatedNets(previousExam);
   const recentResult = await query(
     `
       SELECT
@@ -2442,6 +2485,10 @@ KURALLAR:
 - Sonunda bir sonraki denemeye kadar kısa bir çalışma odağı oluştur.
 - Veride konu bilgisi yoksa belirli bir konu uydurma.
 - Genel motivasyon konuşması yapma.
+- Ders netlerini kendin yeniden hesaplama; verilen net değerlerini kullan.
+- status "no_data" olan dersleri 0 net veya çözülmemiş olarak yorumlama.
+- status "no_data" olan derslerde yalnızca "kayıtlı veri yok" de.
+- Veri olmayan bir dersten çalışma önceliği veya önerisi çıkarma.
 
 YANIT DÜZENİ:
 Genel Durum
@@ -2453,11 +2500,11 @@ Bir Sonraki Denemeye Kadar
 `,
 
       input:
-        `SEÇİLEN DENEME:
-${JSON.stringify(selectedExam)}
+      SEÇİLEN DENEME:
+${JSON.stringify(selectedExamForAI)}
 
 ÖNCEKİ AYNI TÜR DENEME:
-${JSON.stringify(previousExam)}
+${JSON.stringify(previousExamForAI)}
 
 SON DİĞER DENEMELER:
 ${JSON.stringify(recentResult.rows)}
