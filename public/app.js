@@ -33,7 +33,7 @@ const titles = {
   recovery: ['AI PRO', 'Beni Toparla'],
   solver: ['AI PRO', 'Soru Çözücü'],
   wrongAnalysis: ['AI PRO', 'Yanlış Analizi'],
-
+examAnalysis: ['AI PRO', 'Deneme Analizi'],
   duels: ['DÜELLO', 'Düello & Liderlik'],
   settings: ['HESAP', 'Ayarlar & Paket']
 };
