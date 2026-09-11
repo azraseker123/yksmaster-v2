@@ -2444,6 +2444,7 @@ async function renderAI(){
     recovery: 'recovery',
     solver: 'solver',
     wrongAnalysis: 'analysis'
+examAnalysis: 'examAnalysis'
   };
 
   const meta = {
