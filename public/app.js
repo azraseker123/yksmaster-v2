@@ -2484,13 +2484,18 @@ examAnalysis: 'examAnalysis'
       'Soru fotoğrafını gönder; AI çözümü adım adım açıklasın.'
     ],
 
-    analysis: [
-      'YANLIŞ ANALİZİ',
-      'AI Yanlış Analizi',
-      'Kayıtlı soru verileri ve yanlış arşivinden hangi alanlara öncelik vermen gerektiğini analiz et.'
-    ]
-  };
+   analysis: [
+  'YANLIŞ ANALİZİ',
+  'AI Yanlış Analizi',
+  'Kayıtlı soru verileri ve yanlış arşivinden hangi alanlara öncelik vermen gerektiğini analiz et.'
+],
 
+examAnalysis: [
+  'DENEME ANALİZİ',
+  'AI Deneme Analizi',
+  'Kayıtlı denemelerinden birini seç; ders sonuçlarını, toplam netini ve önceki performansını AI ile analiz et.'
+]
+};
   state.aiTab = pageToTab[state.page] || 'coach';
 
   const m = meta[state.aiTab];
