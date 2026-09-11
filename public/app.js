@@ -2690,6 +2690,102 @@ function drawAiTab(){
     $('#solverImage',root).onchange=async e=>{if(!e.target.files[0])return;try{state.solveImage=await compressImage(e.target.files[0],1600,.82);let im=$('#solverPreview',root);if(!im){im=document.createElement('img');im.id='solverPreview';im.className='archive-img';im.style.maxWidth='420px';e.target.closest('label').after(im);}im.src=state.solveImage;}catch(err){toast(err.message,'error');}};
     $('#solverForm',root).onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.querySelector('button');loading(b,true);try{let imageData=state.solveImage;if(!imageData&&$('#solverImage',root).files[0])imageData=await compressImage($('#solverImage',root).files[0],1600,.82);if(!imageData)throw new Error('Soru fotoğrafı seç.');const d=await api('/api/ai',{method:'POST',body:JSON.stringify({action:'solve_image',imageData,mimeType:'image/jpeg',prompt:e.currentTarget.prompt.value})});$('#solverResult',root).innerHTML=aiText(d.answer);}catch(err){toast(err.message,'error');}finally{loading(b,false,'✦ Soruyu Çöz');}};return;
   }
+  if(state.aiTab==='examAnalysis'){
+  p.innerHTML=`
+    <div class="panel-head">
+      <div>
+        <span class="eyebrow">DENEME PERFORMANSI</span>
+        <h3>AI Deneme Analizi</h3>
+      </div>
+    </div>
+
+    <p class="muted">
+      Kayıtlı denemelerinden birini seç. AI; ders bazlı doğru,
+      yanlış ve boşlarını, toplam netini ve önceki denemelerini
+      birlikte değerlendirerek çalışma önceliklerini çıkarsın.
+    </p>
+
+    <div id="examAnalysisContent"></div>
+  `;
+
+  (async()=>{
+    try{
+      const d=await api('/api/exams');
+      const exams=d.items||[];
+      const area=$('#examAnalysisContent',root);
+
+      if(!exams.length){
+        area.innerHTML=empty(
+          'Henüz deneme kaydın yok',
+          'Önce Deneme Takibi bölümünden bir deneme sonucu ekle.',
+          '▥'
+        );
+        return;
+      }
+
+      area.innerHTML=`
+        <form id="examAnalysisForm" class="compact-form">
+          <label>
+            Analiz edilecek deneme
+
+            <select id="examAnalysisSelect" required>
+              ${exams.map(x=>`
+                <option value="${x.id}">
+                  ${esc(x.exam_name)}
+                  · ${esc(x.exam_type)}
+                  · ${Number(x.total_net).toFixed(2)} net
+                  · ${fmtDate(x.exam_date)}
+                </option>
+              `).join('')}
+            </select>
+          </label>
+
+          <button class="btn primary" type="submit">
+            ✦ Denemeyi Analiz Et
+          </button>
+        </form>
+
+        <div id="examAnalysisResult" style="margin-top:16px"></div>
+      `;
+
+      $('#examAnalysisForm',root).onsubmit=async e=>{
+        e.preventDefault();
+
+        const button=e.currentTarget.querySelector('button[type="submit"]');
+        const examId=Number($('#examAnalysisSelect',root).value);
+
+        loading(button,true);
+
+        try{
+          const result=await api('/api/ai',{
+            method:'POST',
+            body:JSON.stringify({
+              action:'exam_analysis',
+              examId
+            })
+          });
+
+          $('#examAnalysisResult',root).innerHTML=aiText(result.answer);
+
+        }catch(err){
+          toast(err.message,'error');
+
+        }finally{
+          loading(button,false,'✦ Denemeyi Analiz Et');
+        }
+      };
+
+    }catch(err){
+      $('#examAnalysisContent',root).innerHTML=empty(
+        'Denemeler yüklenemedi',
+        err.message,
+        '!'
+      );
+    }
+  })();
+
+  return;
+}
   if(state.aiTab==='analysis'){
     p.innerHTML=`<div class="panel-head"><div><span class="eyebrow">SADECE AI PRO</span><h3>Yanlış Analizi</h3></div></div><p class="muted">Soru kayıtların ve dijital yanlış arşivindeki notlar üzerinden önceliklerini çıkarır. Temel pakette bu analiz yoktur.</p><button id="runAnalysis" class="btn primary">✦ Analizi Başlat</button><div id="analysisResult" style="margin-top:14px"></div>`;
     $('#runAnalysis',root).onclick=async()=>{const b=$('#runAnalysis',root);loading(b,true);try{const d=await api('/api/ai',{method:'POST',body:JSON.stringify({action:'wrong_analysis'})});$('#analysisResult',root).innerHTML=aiText(d.answer);}catch(err){toast(err.message,'error');}finally{loading(b,false,'✦ Analizi Başlat');}};
