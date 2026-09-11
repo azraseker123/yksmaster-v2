@@ -2443,7 +2443,7 @@ async function renderAI(){
     aiProgram: 'program',
     recovery: 'recovery',
     solver: 'solver',
-    wrongAnalysis: 'analysis'
+    wrongAnalysis: 'analysis',
 examAnalysis: 'examAnalysis'
   };
 
