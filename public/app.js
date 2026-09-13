@@ -2501,22 +2501,61 @@ examAnalysis: [
   const m = meta[state.aiTab];
 
   root.innerHTML = `
-    <div class="section-title">
-      <div>
-        <span class="eyebrow">${m[0]}</span>
-        <h1>${m[1]}</h1>
-        <p>${m[2]}</p>
-      </div>
-
-      <span class="tag">AI PRO</span>
+  <div class="section-title">
+    <div>
+      <span class="eyebrow">${m[0]}</span>
+      <h1>${m[1]}</h1>
+      <p>${m[2]}</p>
     </div>
 
-    <article
-      id="aiPanel"
-      class="panel ai-panel">
-    </article>
-  `;
+    <span class="tag">AI PRO</span>
+  </div>
 
+  <div class="panel" style="margin-bottom:16px">
+    <div class="panel-head">
+      <div>
+        <span class="eyebrow">AYLIK KULLANIM</span>
+        <h3>Bu Ayki AI Hakların</h3>
+      </div>
+    </div>
+
+    <div id="aiUsageSummary" class="stats-grid">
+      <p class="muted">Hakların yükleniyor...</p>
+    </div>
+  </div>
+
+  <article
+    id="aiPanel"
+    class="panel ai-panel">
+  </article>
+`;
+  (async()=>{
+  try{
+    const data = await api('/api/ai');
+    const area = $('#aiUsageSummary', root);
+
+    if(!area) return;
+
+    area.innerHTML = (data.items || []).map(x => `
+      <div class="stat-card">
+        <span>${esc(x.name)}</span>
+        <strong>${x.remaining} / ${x.limit}</strong>
+        <small>Kalan kullanım</small>
+      </div>
+    `).join('');
+
+  }catch(err){
+    const area = $('#aiUsageSummary', root);
+
+    if(area){
+      area.innerHTML = `
+        <p class="muted">
+          AI kullanım hakları yüklenemedi.
+        </p>
+      `;
+    }
+  }
+})();
   drawAiTab();
 }
 
