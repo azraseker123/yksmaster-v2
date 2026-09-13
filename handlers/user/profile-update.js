@@ -18,8 +18,23 @@ export default async function handler(req,res){
       if(next.length<8)return res.status(400).json({error:'Yeni şifre en az 8 karakter olmalı.'});
       const r=await query(`SELECT password_hash FROM yks2_users WHERE id=$1`,[user.id]);
       if(!(await bcrypt.compare(current,r.rows[0].password_hash)))return res.status(401).json({error:'Mevcut şifre hatalı.'});
-      await query(`UPDATE yks2_users SET password_hash=$1,updated_at=NOW() WHERE id=$2`,[await bcrypt.hash(next,12),user.id]);return res.status(200).json({ok:true});
-    }
+    await query(
+  `UPDATE yks2_users
+   SET
+     password_hash = $1,
+     session_version = session_version + 1,
+     updated_at = NOW()
+   WHERE id = $2`,
+  [
+    await bcrypt.hash(next,12),
+    user.id
+  ]
+);
+
+return res.status(200).json({
+  ok:true,
+  logoutRequired:true
+});
     return res.status(400).json({error:'Geçersiz işlem.'});
   }catch(err){console.error('Profile update error:',err);return res.status(500).json({error:'Profil güncellenemedi.'});}
 }
