@@ -906,7 +906,7 @@ export default async function handler(
       user,
       action
     );
-
+await enforceMonthlyLimit(user, action);
 
     const ctx =
       await context(user);
