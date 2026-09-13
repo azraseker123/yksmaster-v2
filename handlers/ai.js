@@ -879,7 +879,86 @@ export default async function handler(
 
 
   if (!user) return;
+if (req.method === 'GET') {
+  try {
+    const result = await query(
+      `
+        SELECT
+          action,
+          COUNT(*)::int AS used
+        FROM yks2_ai_usage
+        WHERE user_id = $1
+          AND created_at >= (
+            date_trunc(
+              'month',
+              NOW() AT TIME ZONE 'Europe/Istanbul'
+            ) AT TIME ZONE 'Europe/Istanbul'
+          )
+          AND created_at < (
+            (
+              date_trunc(
+                'month',
+                NOW() AT TIME ZONE 'Europe/Istanbul'
+              ) + INTERVAL '1 month'
+            ) AT TIME ZONE 'Europe/Istanbul'
+          )
+        GROUP BY action
+      `,
+      [user.id]
+    );
 
+    const usedByAction =
+      Object.fromEntries(
+        result.rows.map(row => [
+          row.action,
+          Number(row.used || 0)
+        ])
+      );
+
+    const names = {
+      coach: 'AI Koç',
+      flashcards: 'Flashcard',
+      test: 'Test Lab',
+      program: 'AI Çalışma Programı',
+      wrong_analysis: 'Yanlış Analizi',
+      solve_image: 'Fotoğraftan Soru Çözümü',
+      recovery: 'Beni Toparla',
+      exam_analysis: 'Deneme Analizi'
+    };
+
+    const items =
+      Object.entries(MONTHLY_LIMITS)
+        .map(([action, limit]) => {
+          const used =
+            usedByAction[action] || 0;
+
+          return {
+            action,
+            name:
+              names[action] || action,
+            used,
+            limit,
+            remaining:
+              Math.max(0, limit - used)
+          };
+        });
+
+    return res.status(200).json({
+      items
+    });
+
+  } catch (err) {
+    console.error(
+      'AI usage summary error:',
+      err
+    );
+
+    return res.status(500).json({
+      error:
+        'AI kullanım hakları yüklenemedi.'
+    });
+  }
+}
 
   const action =
     text(
