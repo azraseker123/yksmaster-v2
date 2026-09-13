@@ -859,15 +859,15 @@ export default async function handler(
   req,
   res
 ) {
-  if (
-    !onlyMethods(
-      req,
-      res,
-      ['POST']
-    )
-  ) {
-    return;
-  }
+ if (
+  !onlyMethods(
+    req,
+    res,
+    ['GET', 'POST']
+  )
+) {
+  return;
+}
 
 
   const user =
