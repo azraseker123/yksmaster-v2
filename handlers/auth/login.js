@@ -23,7 +23,20 @@ export default async function handler(req,res){
       }
       return res.status(401).json({error:'E-posta veya şifre hatalı.'});
     }
-    await query(`UPDATE yks2_users SET last_login_at=NOW(),failed_login_count=0,locked_until=NULL WHERE id=$1`,[user.id]);
+   const sessionResult = await query(
+  `UPDATE yks2_users
+   SET
+     last_login_at = NOW(),
+     failed_login_count = 0,
+     locked_until = NULL,
+     session_version = session_version + 1
+   WHERE id = $1
+   RETURNING session_version`,
+  [user.id]
+);
+
+user.session_version =
+  Number(sessionResult.rows[0]?.session_version || 0);
     const adminEmail=(process.env.ADMIN_EMAIL||'').trim().toLowerCase();
     if(adminEmail&&user.email?.toLowerCase()===adminEmail)user.role='admin';
     user.effectivePlan=effectivePlan(user);
