@@ -29,7 +29,16 @@ const DAILY_LIMITS = {
   recovery: 3,
   exam_analysis: 5
 };
-
+const MONTHLY_LIMITS = {
+  coach: 100,
+  flashcards: 40,
+  test: 30,
+  program: 8,
+  wrong_analysis: 10,
+  solve_image: 100,
+  recovery: 10,
+  exam_analysis: 10
+};
 
 async function enforceDailyLimit(user, action) {
   if (user.role === 'admin') return;
