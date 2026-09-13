@@ -63,7 +63,45 @@ async function enforceDailyLimit(user, action) {
     throw err;
   }
 }
+async function enforceMonthlyLimit(user, action) {
+  const limit = MONTHLY_LIMITS[action];
 
+  if (!limit) {
+    return;
+  }
+
+  const result = await query(
+    `
+      SELECT COUNT(*)::int AS count
+      FROM yks2_ai_usage
+      WHERE user_id = $1
+        AND action = $2
+        AND created_at >= date_trunc('month', CURRENT_TIMESTAMP)
+        AND created_at < date_trunc('month', CURRENT_TIMESTAMP)
+                         + INTERVAL '1 month'
+    `,
+    [user.id, action]
+  );
+
+  const used = Number(result.rows[0]?.count || 0);
+
+  if (used >= limit) {
+    const names = {
+      coach: 'AI Koç',
+      flashcards: 'Flashcard',
+      test: 'Test Lab',
+      program: 'AI Çalışma Programı',
+      wrong_analysis: 'Yanlış Analizi',
+      solve_image: 'Fotoğraftan Soru Çözümü',
+      recovery: 'Beni Toparla',
+      exam_analysis: 'Deneme Analizi'
+    };
+
+    throw new Error(
+      `${names[action] || 'Bu özellik'} için aylık ${limit} kullanım hakkını doldurdun.`
+    );
+  }
+}
 
 /*
   Bütün metin üreten AI özellikleri için ortak kurallar.
