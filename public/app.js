@@ -2536,14 +2536,13 @@ examAnalysis: [
 
     if(!area) return;
 
-    area.innerHTML = (data.items || []).map(x => `
-      <div class="stat-card">
-        <span>${esc(x.name)}</span>
-        <strong>${x.remaining} / ${x.limit}</strong>
-        <small>Kalan kullanım</small>
-      </div>
-    `).join('');
-
+   area.innerHTML = (data.items || []).map(x => `
+  <div class="stat-card">
+    <span>${esc(x.name)}</span>
+    <strong>Kalan: ${x.remaining} / ${x.limit}</strong>
+    <small>${x.used} kullanıldı</small>
+  </div>
+`).join('');
   }catch(err){
     const area = $('#aiUsageSummary', root);
 
