@@ -20,12 +20,12 @@ import { turkeyDate, addDays } from '../lib/dates.js';
 
 
 const DAILY_LIMITS = {
-  coach: 50,
+  coach: 25,
   flashcards: 15,
-  test: 15,
-  program: 3,
+  test: 10,
+  program: 5,
   wrong_analysis: 5,
-  solve_image: 15,
+  solve_image: 25,
   recovery: 3,
   exam_analysis: 5
 };
