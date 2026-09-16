@@ -54,14 +54,14 @@ if (
       .digest('hex');
 
     await query(
-      `UPDATE yks2_users
-      SET
-  password_reset_token_hash = $1,
-  password_reset_expires_at = NOW() + INTERVAL '30 minutes',
-  password_reset_last_sent_at = NOW()
-WHERE id = $2
-      [tokenHash, user.id]
-    );
+     `UPDATE yks2_users
+ SET
+   password_reset_token_hash = $1,
+   password_reset_expires_at = NOW() + INTERVAL '30 minutes',
+   password_reset_last_sent_at = NOW()
+ WHERE id = $2`,
+[tokenHash, user.id]
+);
 
     const baseUrl =
       process.env.APP_URL ||
