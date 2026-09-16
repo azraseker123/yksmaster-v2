@@ -2986,7 +2986,28 @@ async function renderSettings(){
   const l=await api('/api/license');const u=state.user,a=state.access;
   root.innerHTML=`<div class="section-title"><div><span class="eyebrow">HESAP & ERİŞİM</span><h1>Ayarlar</h1><p>Hedef bilgilerini güncelle, paket kodunu etkinleştir ve hesabını yönet.</p></div><span class="tag ${a.isPro?'green':''}">${esc(planLabel(a.plan))}</span></div>
   ${!a.hasPaidAccess?`<div class="lock-screen" style="margin-bottom:15px"><div class="lock-icon">◇</div><h2>Hesabın hazır; şimdi paketini etkinleştir</h2><p>Shopier satın alımından gelen kişiye özel kodu aşağıdaki alana gir. Kod kullanıldıktan sonra yalnızca bu hesaba bağlanır.</p></div>`:''}
-  <div class="pricing-grid"><article class="price-card"><span class="eyebrow">TEMEL</span><h3>Temel</h3><div class="price">99 TL <small>/ ay</small></div><p>Müfredat, hedef profili, manuel program, deneme, soru, kaynak, yanlış soru arşivi, tekrar listesi, performans, Pomodoro, uyku, streak, rozet ve akıllı uyarılar.</p></article><article class="price-card pro"><span class="eyebrow">AI PRO</span><h3>AI Pro</h3><div class="price">299 TL <small>/ ay</small></div><p>Temel'in tamamı + AI Koç, Flashcard, Test Lab, AI program, fotoğraftan soru çözme, yanlış analizi ve düello.</p></article><article class="price-card pro"><span class="eyebrow">AI PRO YILLIK</span><h3>AI Pro</h3><div class="price">1299 TL <small>/ yıl</small></div><p>AI Pro özelliklerinin 365 günlük erişimi.</p></article></div>
+ <div class="pricing-grid">
+  <article class="price-card">
+    <span class="eyebrow">TEMEL</span>
+    <h3>Temel</h3>
+    <div class="price">99 TL <small>/ ay</small></div>
+    <p>Müfredat, hedef profili, manuel program, deneme, soru, kaynak, yanlış soru arşivi, tekrar listesi, performans, Pomodoro, uyku, streak, rozet ve akıllı uyarılar.</p>
+  </article>
+
+  <article class="price-card pro">
+    <span class="eyebrow">AI PRO</span>
+    <h3>AI Pro</h3>
+    <div class="price">349 TL <small>/ ay</small></div>
+    <p>Temel'in tamamı + AI Koç, Flashcard, Test Lab, AI Program, Fotoğraftan Soru Çözme, Yanlış Analizi, Deneme Analizi ve Düello.</p>
+  </article>
+
+  <article class="price-card pro">
+    <span class="eyebrow">AI PRO YILLIK</span>
+    <h3>AI Pro</h3>
+    <div class="price">Yakında <small>/ yıllık</small></div>
+    <p>Yıllık paket fiyatı lansman öncesinde açıklanacak.</p>
+  </article>
+</div>
   <div class="content-grid"><article class="panel"><div class="panel-head"><div><span class="eyebrow">LİSANS KODU</span><h3>Paket etkinleştir</h3></div></div><form id="licenseForm" class="license-box"><input name="code" placeholder="YKS-XXXXXX-XXXXXX" required><button class="btn primary" type="submit">Kodu Kullan</button></form><p class="muted" style="font-size:.72rem">Aktif paket: <b>${esc(planLabel(a.plan))}</b>${u.planExpiresAt?` · Bitiş: ${fmtDate(u.planExpiresAt)}`:''}</p></article>
   <article class="panel"><div class="panel-head"><div><span class="eyebrow">HEDEF PROFİLİ</span><h3>Profil bilgileri</h3></div></div><form id="profileForm" class="compact-form"><div class="field-row"><label>Ad soyad<input name="name" value="${esc(u.name)}" required></label><label>Alan<select name="track"><option value="sayisal" ${u.track==='sayisal'?'selected':''}>Sayısal</option><option value="esit_agirlik" ${u.track==='esit_agirlik'?'selected':''}>Eşit Ağırlık</option><option value="sozel" ${u.track==='sozel'?'selected':''}>Sözel</option></select></label></div><div class="field-row"><label>Hedef şehir<input name="targetCity" value="${esc(u.targetCity)}" required></label><label>Hedef üniversite<input name="targetUniversity" value="${esc(u.targetUniversity||'')}"></label></div><div class="field-row"><label>Hedef bölüm<input name="targetDepartment" value="${esc(u.targetDepartment)}" required></label><label>Hedef sıralama<input name="targetRank" type="number" min="1" max="5000000" value="${Number(u.targetRank)}" required></label></div><button class="btn soft" type="submit">Profili Güncelle</button></form></article></div>
   <div class="content-grid" style="margin-top:15px"><article class="panel"><div class="panel-head"><div><span class="eyebrow">GÜVENLİK</span><h3>Şifre değiştir</h3></div></div><form id="passwordForm" class="compact-form"><label>Mevcut şifre<input name="currentPassword" type="password" required></label><label>Yeni şifre<input name="newPassword" type="password" minlength="8" required></label><button class="btn" type="submit">Şifreyi Değiştir</button>
