@@ -37,6 +37,7 @@ const ROUTES = new Map([
 ['auth/logout', authLogout],
 ['auth/me', authMe],
 ['auth/register', authRegister],
+  ['auth/verify-email', authVerifyEmail],
 ['auth/reset-password', authResetPassword],
   ['badges', badges],
   ['curriculum', curriculum],
