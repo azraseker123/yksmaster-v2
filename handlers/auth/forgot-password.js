@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
   try {
     const result = await query(
-      `SELECT id, name, email
+      `SELECT id, name, email, password_reset_last_sent_at
        FROM yks2_users
        WHERE LOWER(email) = LOWER($1)
        LIMIT 1`,
@@ -27,13 +27,24 @@ export default async function handler(req, res) {
 const genericMessage =
   'Bu e-posta kayıtlıysa şifre sıfırlama bağlantısı gönderildi.';
     // Güvenlik için hesap var mı yok mu dışarı belli etmiyoruz.
-    if (!user) {
-      return res.status(200).json({
-        ok: true,
-        message:
-          'Bu e-posta kayıtlıysa şifre sıfırlama bağlantısı gönderildi.'
-      });
-    }
+   if (!user) {
+  return res.status(200).json({
+    ok: true,
+    message: genericMessage
+  });
+}
+
+if (
+  user.password_reset_last_sent_at &&
+  Date.now() -
+    new Date(user.password_reset_last_sent_at).getTime()
+    < 2 * 60 * 1000
+) {
+  return res.status(200).json({
+    ok: true,
+    message: genericMessage
+  });
+}
 
     const rawToken = crypto.randomBytes(32).toString('hex');
 
