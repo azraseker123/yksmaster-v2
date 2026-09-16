@@ -247,7 +247,42 @@ $('#backToLoginButton').addEventListener('click',()=>{
   $('#resetPasswordForm').classList.add('hidden');
   $('#loginForm').classList.remove('hidden');
 });
+$('#forgotPasswordForm').addEventListener('submit',async e=>{
+  e.preventDefault();
 
+  const form = e.currentTarget;
+  const b = form.querySelector('button[type=submit]');
+
+  loading(b,true);
+
+  try{
+    const f = formDataObject(form);
+
+    const d = await api('/api/auth/forgot-password',{
+      method:'POST',
+      body:JSON.stringify({
+        email:f.email
+      })
+    });
+
+    form.reset();
+
+    toast(
+      d.message ||
+      'Bu e-posta kayıtlıysa şifre sıfırlama bağlantısı gönderildi.'
+    );
+
+  }catch(err){
+    toast(err.message,'error');
+
+  }finally{
+    loading(
+      b,
+      false,
+      'Sıfırlama Bağlantısı Gönder'
+    );
+  }
+});
 $('#resetPasswordForm').addEventListener('submit',async e=>{
   e.preventDefault();
 
