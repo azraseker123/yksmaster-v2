@@ -42,12 +42,113 @@
           <button id="registerTab" class="auth-tab" type="button">Kayıt Ol</button>
         </div>
 
-        <form id="loginForm" class="stack-lg">
-          <div class="form-title"><span class="eyebrow">DEVAM ET</span><h2>Tekrar hoş geldin</h2><p>Kaldığın yerden devam etmek için giriş yap.</p></div>
-          <label>E-posta<input name="email" type="email" autocomplete="email" required placeholder="ornek@mail.com"></label>
-          <label>Şifre<input name="password" type="password" autocomplete="current-password" required placeholder="••••••••"></label>
-          <button class="btn primary wide" type="submit">Giriş Yap</button>
-        </form>
+      <form id="loginForm" class="stack-lg">
+  <div class="form-title">
+    <span class="eyebrow">DEVAM ET</span>
+    <h2>Tekrar hoş geldin</h2>
+    <p>Kaldığın yerden devam etmek için giriş yap.</p>
+  </div>
+
+  <label>
+    E-posta
+    <input
+      name="email"
+      type="email"
+      autocomplete="email"
+      required
+      placeholder="ornek@mail.com"
+    >
+  </label>
+
+  <label>
+    Şifre
+    <input
+      name="password"
+      type="password"
+      autocomplete="current-password"
+      required
+      placeholder="••••••••"
+    >
+  </label>
+
+  <button
+    id="forgotPasswordButton"
+    class="btn soft wide"
+    type="button"
+  >
+    Şifremi unuttum
+  </button>
+
+  <button
+    class="btn primary wide"
+    type="submit"
+  >
+    Giriş Yap
+  </button>
+</form>
+
+<form id="forgotPasswordForm" class="stack-lg hidden">
+  <div class="form-title">
+    <span class="eyebrow">ŞİFRE SIFIRLAMA</span>
+    <h2>Şifreni yenile</h2>
+    <p>
+      Hesabındaki e-posta adresini gir.
+      Sana şifre sıfırlama bağlantısı göndereceğiz.
+    </p>
+  </div>
+
+  <label>
+    E-posta
+    <input
+      name="email"
+      type="email"
+      autocomplete="email"
+      required
+      placeholder="ornek@mail.com"
+    >
+  </label>
+
+  <button
+    class="btn primary wide"
+    type="submit"
+  >
+    Sıfırlama Bağlantısı Gönder
+  </button>
+
+  <button
+    id="backToLoginButton"
+    class="btn soft wide"
+    type="button"
+  >
+    Giriş ekranına dön
+  </button>
+</form>
+
+<form id="resetPasswordForm" class="stack-lg hidden">
+  <div class="form-title">
+    <span class="eyebrow">YENİ ŞİFRE</span>
+    <h2>Yeni şifreni belirle</h2>
+    <p>Yeni şifren en az 8 karakter olmalı.</p>
+  </div>
+
+  <label>
+    Yeni şifre
+    <input
+      name="newPassword"
+      type="password"
+      minlength="8"
+      autocomplete="new-password"
+      required
+    >
+  </label>
+
+  <button
+    class="btn primary wide"
+    type="submit"
+  >
+    Şifremi Değiştir
+  </button>
+</form>
 
         <form id="registerForm" class="stack-lg hidden">
           <div class="form-title"><span class="eyebrow">YKS PROFİLİ</span><h2>Hedefini sisteme tanıt</h2><p>Hedef bilgilerin Temel pakette de profilinin parçasıdır.</p></div>
