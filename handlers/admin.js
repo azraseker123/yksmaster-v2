@@ -147,7 +147,7 @@ export default async function handler(req,res){
 
   if(action==='generateCode'){
     const packageKey=text(req.body?.packageKey,40);
-    const assignedEmail=text(req.body?.assignedEmail,180).toLowerCase();
+   const assignedEmail=(text(req.body?.assignedEmail,180)||'').toLowerCase();
     const count=int(req.body?.count,1,20)||1;
     const pkg=LICENSE_PACKAGES[packageKey];
     if(!pkg)return res.status(400).json({error:'Geçersiz paket.'});
