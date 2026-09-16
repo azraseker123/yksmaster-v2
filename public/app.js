@@ -324,43 +324,7 @@ $('#resetPasswordForm').addEventListener('submit',async e=>{
     );
   }
 });
-$('#resetPasswordForm').addEventListener('submit',async e=>{
-  e.preventDefault();
 
-  const b=e.currentTarget.querySelector('button[type=submit]');
-  loading(b,true);
-
-  try{
-    const f=formDataObject(e.currentTarget);
-
-    await api('/api/auth/reset-password',{
-      method:'POST',
-      body:JSON.stringify({
-        token:resetToken,
-        newPassword:f.newPassword
-      })
-    });
-
-    history.replaceState({},'',location.pathname);
-
-    $('#resetPasswordForm').classList.add('hidden');
-    $('#loginForm').classList.remove('hidden');
-
-    e.currentTarget.reset();
-
-    toast('Şifren değiştirildi. Yeni şifrenle giriş yapabilirsin.');
-
-  }catch(err){
-    toast(err.message,'error');
-
-  }finally{
-    loading(
-      b,
-      false,
-      'Şifremi Değiştir'
-    );
-  }
-});
 $('#loginForm').addEventListener('submit',async e=>{
   e.preventDefault();const b=e.currentTarget.querySelector('button[type=submit]');loading(b,true);
   try{const f=formDataObject(e.currentTarget),d=await api('/api/auth/login',{method:'POST',body:JSON.stringify(f)});state.user=d.user;state.access=d.access;showApp();await navigate(state.access.hasPaidAccess?'today':'settings');toast('Giriş başarılı.');}
