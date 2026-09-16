@@ -77,7 +77,7 @@ WHERE id = $2
         <div style="font-family:Arial,sans-serif;line-height:1.6">
           <h2>Şifreni sıfırla</h2>
 
-          <p>Merhaba ${user.name || ''},</p>
+         <p>Merhaba,</p>
 
           <p>
             YKS Master 360 hesabının şifresini sıfırlamak için
