@@ -3061,8 +3061,36 @@ async function handleEmailVerification(){
   return true;
 }
 (async function boot(){
-  state.pendingDuel=new URLSearchParams(location.search).get('duel')||'';
-  try{const d=await api('/api/auth/me');state.user=d.user;state.access=d.access;showApp();if(state.pendingDuel&&state.access.isPro)await navigate('duels');else await navigate(state.access.hasPaidAccess?'today':'settings');}
-  catch{showAuth();}
-})();
+  state.pendingDuel =
+    new URLSearchParams(location.search).get('duel') || '';
 
+  const handledVerification =
+    await handleEmailVerification();
+
+  if(handledVerification) return;
+
+  try{
+    const d = await api('/api/auth/me');
+
+    state.user = d.user;
+    state.access = d.access;
+
+    showApp();
+
+    if(
+      state.pendingDuel &&
+      state.access.isPro
+    ){
+      await navigate('duels');
+    }else{
+      await navigate(
+        state.access.hasPaidAccess
+          ? 'today'
+          : 'settings'
+      );
+    }
+
+  }catch{
+    showAuth();
+  }
+})();
