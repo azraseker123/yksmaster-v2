@@ -13,16 +13,12 @@ export default async function handler(req,res){
     if(user?.locked_until && new Date(user.locked_until).getTime()>Date.now()){
       return res.status(429).json({error:'Çok fazla başarısız giriş denemesi oldu. 15 dakika sonra tekrar dene.'});
     }
-    const valid=user?await bcrypt.compare(password,user.password_hash):false;
-    if(!user||!valid){
-      if(user){
-        await query(`UPDATE yks2_users SET
-          failed_login_count=CASE WHEN failed_login_count+1>=5 THEN 0 ELSE failed_login_count+1 END,
-          locked_until=CASE WHEN failed_login_count+1>=5 THEN NOW()+INTERVAL '15 minutes' ELSE NULL END
-          WHERE id=$1`,[user.id]);
-      }
-      return res.status(401).json({error:'E-posta veya şifre hatalı.'});
-    }
+   if(!user.email_verified_at){
+  return res.status(403).json({
+    error:'Giriş yapmadan önce e-posta adresini doğrulamalısın.',
+    code:'EMAIL_NOT_VERIFIED'
+  });
+}
    const sessionResult = await query(
   `UPDATE yks2_users
    SET
