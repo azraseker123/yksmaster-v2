@@ -7,6 +7,7 @@ import authLogin from '../handlers/auth/login.js';
 import authLogout from '../handlers/auth/logout.js';
 import authMe from '../handlers/auth/me.js';
 import authRegister from '../handlers/auth/register.js';
+import authVerifyEmail from '../handlers/auth/verify-email.js';
 import authResetPassword from '../handlers/auth/reset-password.js';
 import badges from '../handlers/badges.js';
 import curriculum from '../handlers/curriculum.js';
