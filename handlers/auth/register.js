@@ -2,9 +2,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { sendEmail } from '../../lib/email.js';
 import { query } from '../../lib/db.js';
-import { createSessionToken, sessionCookie } from '../../lib/auth.js';
-import { onlyMethods, text, int, normalizeEmail, publicUser } from '../../lib/http.js';
-import { accessFor } from '../../lib/plans.js';
+import { onlyMethods, text, int, normalizeEmail } from '../../lib/http.js';
 
 const TRACKS=new Set(['sayisal','esit_agirlik','sozel']);
 
