@@ -3020,7 +3020,46 @@ toast('Şifren değiştirildi.');}catch(err){toast(err.message,'error');}finally
     $('#adminPlanForm',root).onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.querySelector('button');loading(b,true);try{const f=formDataObject(e.currentTarget);await api('/api/admin',{method:'POST',body:JSON.stringify({action:'setPlan',...f,days:Number(f.days)})});if(f.email.toLowerCase()===state.user.email.toLowerCase())await refreshUser();toast('Plan güncellendi.');renderSettings();}catch(err){toast(err.message,'error');}finally{loading(b,false,'Planı Değiştir');}};
   }
 }
+const verifyEmailToken =
+  new URLSearchParams(location.search).get('verifyEmailToken') || '';
 
+async function handleEmailVerification(){
+  if(!verifyEmailToken) return false;
+
+  showAuth();
+
+  try{
+    const d = await api('/api/auth/verify-email',{
+      method:'POST',
+      body:JSON.stringify({
+        token:verifyEmailToken
+      })
+    });
+
+    history.replaceState({},'',location.pathname);
+
+    $('#loginForm').classList.remove('hidden');
+    $('#registerForm').classList.add('hidden');
+    $('#forgotPasswordForm').classList.add('hidden');
+    $('#resetPasswordForm').classList.add('hidden');
+
+    toast(
+      d.message ||
+      'E-posta adresin doğrulandı. Şimdi giriş yapabilirsin.'
+    );
+
+  }catch(err){
+    history.replaceState({},'',location.pathname);
+
+    toast(
+      err.message ||
+      'E-posta doğrulama bağlantısı geçersiz.',
+      'error'
+    );
+  }
+
+  return true;
+}
 (async function boot(){
   state.pendingDuel=new URLSearchParams(location.search).get('duel')||'';
   try{const d=await api('/api/auth/me');state.user=d.user;state.access=d.access;showApp();if(state.pendingDuel&&state.access.isPro)await navigate('duels');else await navigate(state.access.hasPaidAccess?'today':'settings');}
