@@ -2,10 +2,12 @@ import admin from '../handlers/admin.js';
 import ai from '../handlers/ai.js';
 import alerts from '../handlers/alerts.js';
 import archive from '../handlers/archive.js';
+import authForgotPassword from '../handlers/auth/forgot-password.js';
 import authLogin from '../handlers/auth/login.js';
 import authLogout from '../handlers/auth/logout.js';
 import authMe from '../handlers/auth/me.js';
 import authRegister from '../handlers/auth/register.js';
+import authResetPassword from '../handlers/auth/reset-password.js';
 import badges from '../handlers/badges.js';
 import curriculum from '../handlers/curriculum.js';
 import dashboard from '../handlers/dashboard.js';
@@ -29,10 +31,12 @@ const ROUTES = new Map([
   ['ai', ai],
   ['alerts', alerts],
   ['archive', archive],
-  ['auth/login', authLogin],
-  ['auth/logout', authLogout],
-  ['auth/me', authMe],
-  ['auth/register', authRegister],
+ ['auth/forgot-password', authForgotPassword],
+['auth/login', authLogin],
+['auth/logout', authLogout],
+['auth/me', authMe],
+['auth/register', authRegister],
+['auth/reset-password', authResetPassword],
   ['badges', badges],
   ['curriculum', curriculum],
   ['dashboard', dashboard],
