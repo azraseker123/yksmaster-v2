@@ -111,11 +111,10 @@ WHERE id = $2
       `
     });
 
-    return res.status(200).json({
-      ok: true,
-      message:
-        'Bu e-posta kayıtlıysa şifre sıfırlama bağlantısı gönderildi.'
-    });
+   return res.status(200).json({
+  ok: true,
+  message: genericMessage
+});
 
   } catch (err) {
     console.error('Forgot password error:', err);
