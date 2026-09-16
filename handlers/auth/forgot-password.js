@@ -24,7 +24,8 @@ export default async function handler(req, res) {
     );
 
     const user = result.rows[0];
-
+const genericMessage =
+  'Bu e-posta kayıtlıysa şifre sıfırlama bağlantısı gönderildi.';
     // Güvenlik için hesap var mı yok mu dışarı belli etmiyoruz.
     if (!user) {
       return res.status(200).json({
