@@ -226,7 +226,100 @@ $('#closeMenu').addEventListener('click',closeMenu);$('#sidebarBackdrop').addEve
 
 $('#loginTab').addEventListener('click',()=>{$('#loginTab').classList.add('active');$('#registerTab').classList.remove('active');$('#loginForm').classList.remove('hidden');$('#registerForm').classList.add('hidden');});
 $('#registerTab').addEventListener('click',()=>{$('#registerTab').classList.add('active');$('#loginTab').classList.remove('active');$('#registerForm').classList.remove('hidden');$('#loginForm').classList.add('hidden');});
+const resetToken = new URLSearchParams(location.search).get('resetToken') || '';
 
+if(resetToken){
+  $('#loginForm').classList.add('hidden');
+  $('#registerForm').classList.add('hidden');
+  $('#forgotPasswordForm').classList.add('hidden');
+  $('#resetPasswordForm').classList.remove('hidden');
+}
+
+$('#forgotPasswordButton').addEventListener('click',()=>{
+  $('#loginForm').classList.add('hidden');
+  $('#registerForm').classList.add('hidden');
+  $('#forgotPasswordForm').classList.remove('hidden');
+  $('#resetPasswordForm').classList.add('hidden');
+});
+
+$('#backToLoginButton').addEventListener('click',()=>{
+  $('#forgotPasswordForm').classList.add('hidden');
+  $('#resetPasswordForm').classList.add('hidden');
+  $('#loginForm').classList.remove('hidden');
+});
+
+$('#forgotPasswordForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+
+  const b=e.currentTarget.querySelector('button[type=submit]');
+  loading(b,true);
+
+  try{
+    const f=formDataObject(e.currentTarget);
+
+    const d=await api('/api/auth/forgot-password',{
+      method:'POST',
+      body:JSON.stringify({
+        email:f.email
+      })
+    });
+
+    toast(
+      d.message ||
+      'E-posta kayıtlıysa sıfırlama bağlantısı gönderildi.'
+    );
+
+    e.currentTarget.reset();
+
+  }catch(err){
+    toast(err.message,'error');
+
+  }finally{
+    loading(
+      b,
+      false,
+      'Sıfırlama Bağlantısı Gönder'
+    );
+  }
+});
+
+$('#resetPasswordForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+
+  const b=e.currentTarget.querySelector('button[type=submit]');
+  loading(b,true);
+
+  try{
+    const f=formDataObject(e.currentTarget);
+
+    await api('/api/auth/reset-password',{
+      method:'POST',
+      body:JSON.stringify({
+        token:resetToken,
+        newPassword:f.newPassword
+      })
+    });
+
+    history.replaceState({},'',location.pathname);
+
+    $('#resetPasswordForm').classList.add('hidden');
+    $('#loginForm').classList.remove('hidden');
+
+    e.currentTarget.reset();
+
+    toast('Şifren değiştirildi. Yeni şifrenle giriş yapabilirsin.');
+
+  }catch(err){
+    toast(err.message,'error');
+
+  }finally{
+    loading(
+      b,
+      false,
+      'Şifremi Değiştir'
+    );
+  }
+});
 $('#loginForm').addEventListener('submit',async e=>{
   e.preventDefault();const b=e.currentTarget.querySelector('button[type=submit]');loading(b,true);
   try{const f=formDataObject(e.currentTarget),d=await api('/api/auth/login',{method:'POST',body:JSON.stringify(f)});state.user=d.user;state.access=d.access;showApp();await navigate(state.access.hasPaidAccess?'today':'settings');toast('Giriş başarılı.');}
