@@ -55,10 +55,11 @@ if (
 
     await query(
       `UPDATE yks2_users
-       SET
-         password_reset_token_hash = $1,
-         password_reset_expires_at = NOW() + INTERVAL '30 minutes'
-       WHERE id = $2`,
+      SET
+  password_reset_token_hash = $1,
+  password_reset_expires_at = NOW() + INTERVAL '30 minutes',
+  password_reset_last_sent_at = NOW()
+WHERE id = $2
       [tokenHash, user.id]
     );
 
