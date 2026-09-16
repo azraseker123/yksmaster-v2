@@ -78,41 +78,57 @@ const baseUrl =
 const verifyUrl =
   `${baseUrl}/?verifyEmailToken=${encodeURIComponent(rawVerifyToken)}`;
 
-await sendEmail({
-  to: email,
-  subject: 'YKS Master 360 - E-posta Doğrulama',
-  html: `
-    <div style="font-family:Arial,sans-serif;line-height:1.6">
-      <h2>E-posta adresini doğrula</h2>
+try {
+  await sendEmail({
+    to: email,
+    subject: 'YKS Master 360 - E-posta Doğrulama',
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6">
+        <h2>E-posta adresini doğrula</h2>
 
-      <p>
-        YKS Master 360 hesabını kullanmaya devam etmek için
-        e-posta adresini doğrula.
-      </p>
+        <p>
+          YKS Master 360 hesabını kullanmaya devam etmek için
+          e-posta adresini doğrula.
+        </p>
 
-      <p>
-        <a
-          href="${verifyUrl}"
-          style="
-            display:inline-block;
-            padding:12px 18px;
-            background:#0B1F3A;
-            color:white;
-            text-decoration:none;
-            border-radius:8px;
-          "
-        >
-          E-postamı Doğrula
-        </a>
-      </p>
+        <p>
+          <a
+            href="${verifyUrl}"
+            style="
+              display:inline-block;
+              padding:12px 18px;
+              background:#0B1F3A;
+              color:white;
+              text-decoration:none;
+              border-radius:8px;
+            "
+          >
+            E-postamı Doğrula
+          </a>
+        </p>
 
-      <p>
-        Bu bağlantı 24 saat boyunca geçerlidir.
-      </p>
-    </div>
-  `
+        <p>
+          Bu bağlantı 24 saat boyunca geçerlidir.
+        </p>
+      </div>
+    `
+  });
+
+} catch (emailErr) {
+  await query(
+    `DELETE FROM yks2_users
+     WHERE id = $1`,
+    [user.id]
+  );
+
+  throw emailErr;
+}
+
+return res.status(201).json({
+  ok: true,
+  verificationRequired: true,
+  message:
+    'Hesabın oluşturuldu. E-posta adresine gönderilen doğrulama bağlantısına tıkla.'
 });
-    res.setHeader('Set-Cookie',sessionCookie(createSessionToken(user)));
-    return res.status(201).json({user:publicUser(user),access:accessFor(user)});
   }catch(err){console.error('Register error:',err);if(err?.code==='23505')return res.status(409).json({error:'Bu e-posta ile kayıtlı bir hesap var.'});return res.status(500).json({error:'Kayıt sırasında sunucu hatası oluştu.'});}
 }
