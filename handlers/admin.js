@@ -166,7 +166,7 @@ export default async function handler(req,res){
   }
 
  if(action==='setPlan'){
-  const email=text(req.body?.email,180).toLowerCase();
+  const email=(text(req.body?.email,180)||'').toLowerCase();
   const plan=text(req.body?.plan,20);
   const days=int(req.body?.days,1,3650)||30;
 
