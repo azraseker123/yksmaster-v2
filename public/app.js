@@ -332,9 +332,48 @@ $('#loginForm').addEventListener('submit',async e=>{
   catch(err){toast(err.message,'error');}finally{loading(b,false,'Giriş Yap');}
 });
 $('#registerForm').addEventListener('submit',async e=>{
-  e.preventDefault();const b=e.currentTarget.querySelector('button[type=submit]');loading(b,true);
-  try{const f=formDataObject(e.currentTarget),d=await api('/api/auth/register',{method:'POST',body:JSON.stringify(f)});state.user=d.user;state.access=d.access;showApp();await navigate(state.access.hasPaidAccess?'today':'settings');toast('Hesabın oluşturuldu. Paket kodunu Ayarlar bölümünden etkinleştirebilirsin.');}
-  catch(err){toast(err.message,'error');}finally{loading(b,false,'Hesabımı Oluştur');}
+  e.preventDefault();
+
+  const form = e.currentTarget;
+  const b = form.querySelector('button[type=submit]');
+
+  loading(b,true);
+
+  try{
+    const f = formDataObject(form);
+
+    const d = await api('/api/auth/register',{
+      method:'POST',
+      body:JSON.stringify(f)
+    });
+
+    if(d.verificationRequired){
+      form.reset();
+
+      $('#registerForm').classList.add('hidden');
+      $('#loginForm').classList.remove('hidden');
+
+      $('#registerTab').classList.remove('active');
+      $('#loginTab').classList.add('active');
+
+      toast(
+        d.message ||
+        'Hesabın oluşturuldu. E-posta adresini doğruladıktan sonra giriş yapabilirsin.'
+      );
+
+      return;
+    }
+
+  }catch(err){
+    toast(err.message,'error');
+
+  }finally{
+    loading(
+      b,
+      false,
+      'Hesabımı Oluştur'
+    );
+  }
 });
 $('#logoutButton').addEventListener('click',async()=>{try{await api('/api/auth/logout',{method:'POST'});}catch{}state.user=null;state.access=null;state.curriculum=null;state.progress=[];showAuth();});
 
