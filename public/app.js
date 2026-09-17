@@ -373,6 +373,53 @@ $('#loginForm').addEventListener('submit',async e=>{
     loading(b,false,'Giriş Yap');
   }
 });
+$('#resendVerificationButton')?.addEventListener(
+  'click',
+  async ()=>{
+    const button =
+      $('#resendVerificationButton');
+
+    const email =
+      $('#loginForm input[name="email"]')
+        ?.value
+        ?.trim();
+
+    if(!email){
+      toast(
+        'Önce e-posta adresini yaz.',
+        'error'
+      );
+      return;
+    }
+
+    loading(button,true);
+
+    try{
+      const d = await api(
+        '/api/auth/resend-verification',
+        {
+          method:'POST',
+          body:JSON.stringify({ email })
+        }
+      );
+
+      toast(
+        d.message ||
+        'Doğrulama e-postası tekrar gönderildi.'
+      );
+
+    }catch(err){
+      toast(err.message,'error');
+
+    }finally{
+      loading(
+        button,
+        false,
+        'Doğrulama mailini tekrar gönder'
+      );
+    }
+  }
+);
 $('#registerForm').addEventListener('submit',async e=>{
   e.preventDefault();
 
