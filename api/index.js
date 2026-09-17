@@ -40,6 +40,7 @@ const ROUTES = new Map([
 ['auth/me', authMe],
 ['auth/register', authRegister],
  ['auth/verify-email', authVerifyEmail],
+  ['auth/resend-verification', authResendVerification],
 ['auth/reset-password', authResetPassword],
 ['shopier', shopier],
   ['badges', badges],
