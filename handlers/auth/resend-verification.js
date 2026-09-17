@@ -112,9 +112,10 @@ updated_at = NOW()
       await query(
         `UPDATE yks2_users
          SET
-           email_verify_token_hash = NULL,
-           email_verify_expires_at = NULL,
-           updated_at = NOW()
+         email_verify_token_hash = NULL,
+email_verify_expires_at = NULL,
+email_verify_last_sent_at = NULL,
+updated_at = NOW()
          WHERE id = $1`,
         [user.id]
       );
