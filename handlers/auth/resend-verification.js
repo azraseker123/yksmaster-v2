@@ -57,9 +57,10 @@ if (
       `UPDATE yks2_users
        SET
          email_verify_token_hash = $1,
-         email_verify_expires_at =
-           NOW() + INTERVAL '24 hours',
-         updated_at = NOW()
+       email_verify_expires_at =
+  NOW() + INTERVAL '24 hours',
+email_verify_last_sent_at = NOW(),
+updated_at = NOW()
        WHERE id = $2`,
       [verifyTokenHash, user.id]
     );
