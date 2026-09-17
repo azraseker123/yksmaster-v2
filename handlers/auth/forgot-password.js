@@ -70,46 +70,61 @@ if (
     const resetUrl =
       `${baseUrl}/?resetToken=${encodeURIComponent(rawToken)}`;
 
-    await sendEmail({
-      to: user.email,
-      subject: 'YKS Master 360 - Şifre Sıfırlama',
-      html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.6">
-          <h2>Şifreni sıfırla</h2>
+  try {
+  await sendEmail({
+    to: user.email,
+    subject: 'YKS Master 360 - Şifre Sıfırlama',
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6">
+        <h2>Şifreni sıfırla</h2>
 
-         <p>Merhaba,</p>
+        <p>Merhaba,</p>
 
-          <p>
-            YKS Master 360 hesabının şifresini sıfırlamak için
-            aşağıdaki bağlantıya tıkla.
-          </p>
+        <p>
+          YKS Master 360 hesabının şifresini sıfırlamak için
+          aşağıdaki bağlantıya tıkla.
+        </p>
 
-          <p>
-            <a
-              href="${resetUrl}"
-              style="
-                display:inline-block;
-                padding:12px 18px;
-                background:#0B1F3A;
-                color:white;
-                text-decoration:none;
-                border-radius:8px;
-              "
-            >
-              Şifremi Sıfırla
-            </a>
-          </p>
+        <p>
+          <a
+            href="${resetUrl}"
+            style="
+              display:inline-block;
+              padding:12px 18px;
+              background:#0B1F3A;
+              color:white;
+              text-decoration:none;
+              border-radius:8px;
+            "
+          >
+            Şifremi Sıfırla
+          </a>
+        </p>
 
-          <p>
-            Bu bağlantı 30 dakika boyunca geçerlidir.
-          </p>
+        <p>
+          Bu bağlantı 30 dakika boyunca geçerlidir.
+        </p>
 
-          <p>
-            Bu işlemi sen istemediysen bu e-postayı görmezden gelebilirsin.
-          </p>
-        </div>
-      `
-    });
+        <p>
+          Bu işlemi sen istemediysen bu e-postayı görmezden gelebilirsin.
+        </p>
+      </div>
+    `
+  });
+
+} catch (emailErr) {
+  await query(
+    `UPDATE yks2_users
+     SET
+       password_reset_token_hash = NULL,
+       password_reset_expires_at = NULL,
+       password_reset_last_sent_at = NULL
+     WHERE id = $1`,
+    [user.id]
+  );
+
+  throw emailErr;
+}
 
    return res.status(200).json({
   ok: true,
