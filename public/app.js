@@ -326,9 +326,52 @@ $('#resetPasswordForm').addEventListener('submit',async e=>{
 });
 
 $('#loginForm').addEventListener('submit',async e=>{
-  e.preventDefault();const b=e.currentTarget.querySelector('button[type=submit]');loading(b,true);
-  try{const f=formDataObject(e.currentTarget),d=await api('/api/auth/login',{method:'POST',body:JSON.stringify(f)});state.user=d.user;state.access=d.access;showApp();await navigate(state.access.hasPaidAccess?'today':'settings');toast('Giriş başarılı.');}
-  catch(err){toast(err.message,'error');}finally{loading(b,false,'Giriş Yap');}
+  e.preventDefault();
+
+  const form = e.currentTarget;
+  const b = form.querySelector('button[type=submit]');
+  const resendButton = $('#resendVerificationButton');
+
+  loading(b,true);
+
+  try{
+    const f = formDataObject(form);
+
+    const d = await api('/api/auth/login',{
+      method:'POST',
+      body:JSON.stringify(f)
+    });
+
+    resendButton?.classList.add('hidden');
+
+    state.user = d.user;
+    state.access = d.access;
+
+    showApp();
+
+    await navigate(
+      state.access.hasPaidAccess
+        ? 'today'
+        : 'settings'
+    );
+
+    toast('Giriş başarılı.');
+
+  }catch(err){
+
+    if(
+      err.code === 'EMAIL_NOT_VERIFIED'
+    ){
+      resendButton?.classList.remove('hidden');
+    }else{
+      resendButton?.classList.add('hidden');
+    }
+
+    toast(err.message,'error');
+
+  }finally{
+    loading(b,false,'Giriş Yap');
+  }
 });
 $('#registerForm').addEventListener('submit',async e=>{
   e.preventDefault();
