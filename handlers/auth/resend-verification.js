@@ -37,7 +37,14 @@ email_verify_last_sent_at
     if (!user || user.email_verified_at) {
       return res.status(200).json(genericResponse);
     }
-
+if (
+  user.email_verify_last_sent_at &&
+  Date.now() -
+    new Date(user.email_verify_last_sent_at).getTime()
+    < 2 * 60 * 1000
+) {
+  return res.status(200).json(genericResponse);
+}
     const rawVerifyToken =
       crypto.randomBytes(32).toString('hex');
 
