@@ -23,8 +23,9 @@ export default async function handler(req, res) {
       `SELECT
          id,
          email,
-         email_verified_at,
-         email_verify_expires_at
+       email_verified_at,
+email_verify_expires_at,
+email_verify_last_sent_at
        FROM yks2_users
        WHERE email = $1
        LIMIT 1`,
