@@ -12,7 +12,10 @@ import {
   normalizeEmail
 } from '../lib/http.js';
 
-import { query } from '../lib/db.js';
+import {
+  query,
+  db
+} from '../lib/db.js';
 import { LICENSE_PACKAGES } from '../lib/plans.js';
 import { getCurriculumForField } from '../data/curriculum.js';
 import { turkeyDate, addDays } from '../lib/dates.js';
