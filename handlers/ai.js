@@ -879,18 +879,16 @@ function aiErrorResponse(err, res) {
     err?.response?.status;
 
 
-  if (
-    status === 429
-  ) {
-    return res.status(429).json({
-      error:
-        err?.message?.includes(
-          'Günlük AI kullanım'
-        )
-          ? err.message
-          : 'AI şu anda yoğun. Birkaç saniye sonra yeniden dene.'
-    });
-  }
+ if (
+  status === 429
+) {
+  return res.status(429).json({
+    error:
+      err?.code === 'AI_LIMIT'
+        ? err.message
+        : 'AI şu anda yoğun. Birkaç saniye sonra yeniden dene.'
+  });
+}
 
 
   if (
@@ -960,7 +958,10 @@ export default async function handler(
     );
 
 
-  if (!user) return;
+if (!user) return;
+
+noStore(res);
+
 if (req.method === 'GET') {
   try {
     const result = await query(
