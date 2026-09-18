@@ -25,6 +25,7 @@ export default async function handler(req, res) {
 
   const track = text(req.body?.track, 30);
   const targetCity = text(req.body?.targetCity, 100);
+
   const targetUniversity = text(
     req.body?.targetUniversity,
     160
@@ -91,27 +92,11 @@ export default async function handler(req, res) {
     const passwordHash =
       await bcrypt.hash(password, 12);
 
-    const adminEmail =
-      (process.env.ADMIN_EMAIL || '')
-        .trim()
-        .toLowerCase();
-
-    const role =
-      adminEmail && email === adminEmail
-        ? 'admin'
-        : 'user';
-
-    const plan =
-      role === 'admin'
-        ? 'ai_pro'
-        : 'none';
-
-    const planExpiresAt =
-      role === 'admin'
-        ? new Date(
-            '2099-12-31T23:59:59Z'
-          )
-        : null;
+    // Güvenlik:
+    // Normal kayıt endpointi hiçbir zaman admin oluşturmaz.
+    const role = 'user';
+    const plan = 'none';
+    const planExpiresAt = null;
 
     const rawVerifyToken =
       crypto.randomBytes(32).toString('hex');
@@ -185,6 +170,7 @@ export default async function handler(req, res) {
     try {
       await sendEmail({
         to: email,
+
         subject:
           'YKS Master 360 - E-posta Doğrulama',
 
