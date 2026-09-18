@@ -73,8 +73,9 @@ async function enforceDailyLimit(user, action) {
       'Günlük AI kullanım sınırına ulaştın. Yarın yeniden kullanabilirsin.'
     );
 
-    err.status = 429;
-    throw err;
+   err.status = 429;
+err.code = 'AI_LIMIT';
+throw err;
   }
 }
 async function enforceMonthlyLimit(user, action) {
