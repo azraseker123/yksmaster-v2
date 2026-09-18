@@ -1,5 +1,10 @@
 import { requireUser } from '../lib/auth.js';
-import { onlyMethods, text, int } from '../lib/http.js';
+import {
+  onlyMethods,
+  text,
+  int,
+  noStore
+} from '../lib/http.js';
 import { query } from '../lib/db.js';
 
 import {
