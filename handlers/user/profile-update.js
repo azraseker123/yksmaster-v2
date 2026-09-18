@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+
 import { requireUser } from '../../lib/auth.js';
 import { query } from '../../lib/db.js';
 import {
@@ -20,20 +21,32 @@ export default async function handler(req, res) {
   const user = await requireUser(req, res);
   if (!user) return;
 
-  const action = text(req.body?.action, 20) || 'profile';
+  const action =
+    text(req.body?.action, 20) || 'profile';
 
   try {
     if (action === 'profile') {
-      const name = text(req.body?.name, 100);
-      const track = text(req.body?.track, 30);
-      const city = text(req.body?.targetCity, 100);
-      const uni = text(req.body?.targetUniversity, 160);
-      const dept = text(req.body?.targetDepartment, 160);
-      const rank = int(
-        req.body?.targetRank,
-        1,
-        5000000
-      );
+      const name =
+        text(req.body?.name, 100);
+
+      const track =
+        text(req.body?.track, 30);
+
+      const city =
+        text(req.body?.targetCity, 100);
+
+      const uni =
+        text(req.body?.targetUniversity, 160);
+
+      const dept =
+        text(req.body?.targetDepartment, 160);
+
+      const rank =
+        int(
+          req.body?.targetRank,
+          1,
+          5000000
+        );
 
       if (
         !name ||
@@ -43,11 +56,12 @@ export default async function handler(req, res) {
         !rank
       ) {
         return res.status(400).json({
-          error: 'Profil alanlarını kontrol et.'
+          error:
+            'Profil alanlarını kontrol et.'
         });
       }
 
-      const r = await query(
+      const result = await query(
         `UPDATE yks2_users
          SET
            name = $1,
@@ -70,54 +84,110 @@ export default async function handler(req, res) {
         ]
       );
 
-      r.rows[0].effectivePlan = user.effectivePlan;
+      const updatedUser =
+        result.rows[0];
+
+      updatedUser.effectivePlan =
+        user.effectivePlan;
 
       return res.status(200).json({
-        user: publicUser(r.rows[0])
+        user:
+          publicUser(updatedUser)
       });
     }
 
     if (action === 'password') {
-      const current = String(
-        req.body?.currentPassword || ''
-      );
+      const currentPassword =
+        String(
+          req.body?.currentPassword || ''
+        );
 
-      const next = String(
-        req.body?.newPassword || ''
-      );
+      const newPassword =
+        String(
+          req.body?.newPassword || ''
+        );
 
-      if (next.length < 8) {
+      if (
+        !currentPassword ||
+        currentPassword.length > 128
+      ) {
         return res.status(400).json({
-          error: 'Yeni şifre en az 8 karakter olmalı.'
+          error:
+            'Mevcut şifre geçersiz.'
         });
       }
 
-      const r = await query(
+      if (
+        newPassword.length < 8 ||
+        newPassword.length > 128
+      ) {
+        return res.status(400).json({
+          error:
+            'Yeni şifre 8 ile 128 karakter arasında olmalı.'
+        });
+      }
+
+      const result = await query(
         `SELECT password_hash
          FROM yks2_users
-         WHERE id = $1`,
+         WHERE id = $1
+         LIMIT 1`,
         [user.id]
       );
 
-      const correct = await bcrypt.compare(
-        current,
-        r.rows[0].password_hash
-      );
+      const account =
+        result.rows[0];
+
+      if (!account) {
+        return res.status(404).json({
+          error:
+            'Hesap bulunamadı.'
+        });
+      }
+
+      const correct =
+        await bcrypt.compare(
+          currentPassword,
+          account.password_hash
+        );
 
       if (!correct) {
         return res.status(401).json({
-          error: 'Mevcut şifre hatalı.'
+          error:
+            'Mevcut şifre hatalı.'
+        });
+      }
+
+      const samePassword =
+        await bcrypt.compare(
+          newPassword,
+          account.password_hash
+        );
+
+      if (samePassword) {
+        return res.status(400).json({
+          error:
+            'Yeni şifre mevcut şifrenle aynı olamaz.'
         });
       }
 
       const passwordHash =
-        await bcrypt.hash(next, 12);
+        await bcrypt.hash(
+          newPassword,
+          12
+        );
 
       await query(
         `UPDATE yks2_users
          SET
            password_hash = $1,
-           session_version = session_version + 1,
+           password_reset_token_hash = NULL,
+           password_reset_expires_at = NULL,
+           password_reset_last_sent_at = NULL,
+           failed_login_count = 0,
+           locked_until = NULL,
+           session_version =
+             session_version + 1,
            updated_at = NOW()
          WHERE id = $2`,
         [
@@ -133,7 +203,8 @@ export default async function handler(req, res) {
     }
 
     return res.status(400).json({
-      error: 'Geçersiz işlem.'
+      error:
+        'Geçersiz işlem.'
     });
 
   } catch (err) {
@@ -143,7 +214,8 @@ export default async function handler(req, res) {
     );
 
     return res.status(500).json({
-      error: 'Profil güncellenemedi.'
+      error:
+        'Profil güncellenemedi.'
     });
   }
 }
