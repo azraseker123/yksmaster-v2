@@ -16,9 +16,20 @@ import {
   query,
   db
 } from '../lib/db.js';
-import { LICENSE_PACKAGES } from '../lib/plans.js';
-import { getCurriculumForField } from '../data/curriculum.js';
-import { turkeyDate, addDays } from '../lib/dates.js';
+
+import {
+  LICENSE_PACKAGES
+} from '../lib/plans.js';
+
+import {
+  getCurriculumForField
+} from '../data/curriculum.js';
+
+import {
+  turkeyDate,
+  addDays
+} from '../lib/dates.js';
+
 
 function makeCode() {
   return (
@@ -33,6 +44,7 @@ function makeCode() {
   );
 }
 
+
 function firstTopic(
   curriculum,
   exam,
@@ -44,36 +56,47 @@ function firstTopic(
   );
 }
 
+
 async function createUniqueLicenseCode(
   packageKey,
   durationDays,
   assignedEmail
 ) {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const code = makeCode();
+  for (
+    let attempt = 0;
+    attempt < 5;
+    attempt++
+  ) {
+    const code =
+      makeCode();
 
     try {
-      const result = await query(
-        `INSERT INTO yks2_license_codes(
-          code,
-          package_key,
-          duration_days,
-          assigned_email
-        )
-        VALUES($1,$2,$3,$4)
-        RETURNING code`,
-        [
-          code,
-          packageKey,
-          durationDays,
-          assignedEmail || null
-        ]
-      );
+      const result =
+        await query(
+          `INSERT INTO yks2_license_codes(
+            code,
+            package_key,
+            duration_days,
+            assigned_email
+          )
+          VALUES($1,$2,$3,$4)
+          RETURNING code`,
+          [
+            code,
+            packageKey,
+            durationDays,
+            assignedEmail ||
+              null
+          ]
+        );
 
       return result.rows[0].code;
 
     } catch (err) {
-      if (err?.code !== '23505') {
+      if (
+        err?.code !==
+        '23505'
+      ) {
         throw err;
       }
     }
@@ -84,31 +107,41 @@ async function createUniqueLicenseCode(
   );
 }
 
-async function seedAdminDemo(user) {
-  const marker = '[YKS MASTER DEMO]';
 
-  const existing = await query(
-    `SELECT id
-     FROM yks2_resources
-     WHERE user_id = $1
-       AND name = $2
-     LIMIT 1`,
-    [
-      user.id,
-      `${marker} Matematik Kaynağı`
-    ]
-  );
+async function seedAdminDemo(
+  user
+) {
+  const marker =
+    '[YKS MASTER DEMO]';
 
-  if (existing.rows.length) {
+  const existing =
+    await query(
+      `SELECT id
+       FROM yks2_resources
+       WHERE user_id = $1
+         AND name = $2
+       LIMIT 1`,
+      [
+        user.id,
+        `${marker} Matematik Kaynağı`
+      ]
+    );
+
+  if (
+    existing.rows.length
+  ) {
     return {
       alreadySeeded: true
     };
   }
 
   const curriculum =
-    getCurriculumForField(user.track);
+    getCurriculumForField(
+      user.track
+    );
 
-  const today = turkeyDate();
+  const today =
+    turkeyDate();
 
   const tytMath =
     firstTopic(
@@ -126,7 +159,8 @@ async function seedAdminDemo(user) {
 
   const aytSubject =
     Object.keys(
-      curriculum.AYT || {}
+      curriculum.AYT ||
+        {}
     )[0];
 
   const aytTopic =
@@ -138,38 +172,41 @@ async function seedAdminDemo(user) {
         )
       : null;
 
-  const resource = await query(
-    `INSERT INTO yks2_resources(
-      user_id,
-      name,
-      exam,
-      subject,
-      total_questions,
-      solved_questions,
-      correct_count,
-      wrong_count,
-      blank_count
-    )
-    VALUES(
-      $1,
-      $2,
-      'TYT',
-      'Matematik',
-      600,
-      180,
-      132,
-      36,
-      12
-    )
-    RETURNING id`,
-    [
-      user.id,
-      `${marker} Matematik Kaynağı`
-    ]
-  );
+
+  const resource =
+    await query(
+      `INSERT INTO yks2_resources(
+        user_id,
+        name,
+        exam,
+        subject,
+        total_questions,
+        solved_questions,
+        correct_count,
+        wrong_count,
+        blank_count
+      )
+      VALUES(
+        $1,
+        $2,
+        'TYT',
+        'Matematik',
+        600,
+        180,
+        132,
+        36,
+        12
+      )
+      RETURNING id`,
+      [
+        user.id,
+        `${marker} Matematik Kaynağı`
+      ]
+    );
 
   const resourceId =
     resource.rows[0].id;
+
 
   const questionRows = [
     [
@@ -183,6 +220,7 @@ async function seedAdminDemo(user) {
       -6,
       resourceId
     ],
+
     [
       'TYT',
       'Matematik',
@@ -194,6 +232,7 @@ async function seedAdminDemo(user) {
       -4,
       resourceId
     ],
+
     [
       'TYT',
       'Türkçe',
@@ -205,6 +244,7 @@ async function seedAdminDemo(user) {
       -3,
       null
     ],
+
     [
       'TYT',
       'Türkçe',
@@ -217,6 +257,7 @@ async function seedAdminDemo(user) {
       null
     ]
   ];
+
 
   if (
     aytSubject &&
@@ -233,6 +274,7 @@ async function seedAdminDemo(user) {
       null
     ]);
   }
+
 
   for (
     const [
@@ -278,16 +320,21 @@ async function seedAdminDemo(user) {
     );
   }
 
+
   for (
     let i = 0;
     i < 7;
     i++
   ) {
     const date =
-      addDays(today, -i);
+      addDays(
+        today,
+        -i
+      );
 
     const minutes =
-      60 + (i % 3) * 20;
+      60 +
+      (i % 3) * 20;
 
     const subject =
       i % 2
@@ -304,6 +351,7 @@ async function seedAdminDemo(user) {
             tytTurkish?.name ||
             'Sözcükte Anlam'
           );
+
 
     await query(
       `INSERT INTO yks2_study_sessions(
@@ -331,6 +379,7 @@ async function seedAdminDemo(user) {
       ]
     );
 
+
     await query(
       `INSERT INTO yks2_activity_log(
         user_id,
@@ -355,6 +404,7 @@ async function seedAdminDemo(user) {
     );
   }
 
+
   const planRows = [
     [
       today,
@@ -365,6 +415,7 @@ async function seedAdminDemo(user) {
       50,
       false
     ],
+
     [
       today,
       'TYT',
@@ -374,8 +425,12 @@ async function seedAdminDemo(user) {
       35,
       true
     ],
+
     [
-      addDays(today, 1),
+      addDays(
+        today,
+        1
+      ),
       aytSubject
         ? 'AYT'
         : 'TYT',
@@ -388,6 +443,7 @@ async function seedAdminDemo(user) {
       false
     ]
   ];
+
 
   for (
     const [
@@ -434,6 +490,7 @@ async function seedAdminDemo(user) {
       ]
     );
   }
+
 
   const examDetails = {
     Türkçe: {
@@ -500,6 +557,7 @@ async function seedAdminDemo(user) {
     }
   };
 
+
   await query(
     `INSERT INTO yks2_exam_results(
       user_id,
@@ -520,7 +578,10 @@ async function seedAdminDemo(user) {
     [
       user.id,
       `${marker} TYT Denemesi`,
-      addDays(today, -2),
+      addDays(
+        today,
+        -2
+      ),
       JSON.stringify(
         examDetails
       ),
@@ -528,13 +589,17 @@ async function seedAdminDemo(user) {
     ]
   );
 
+
   for (
     let i = 0;
     i < 4;
     i++
   ) {
     const date =
-      addDays(today, -i);
+      addDays(
+        today,
+        -i
+      );
 
     await query(
       `INSERT INTO yks2_sleep_logs(
@@ -568,6 +633,7 @@ async function seedAdminDemo(user) {
     );
   }
 
+
   const curriculumSeeds = [
     ...(
       curriculum
@@ -575,14 +641,19 @@ async function seedAdminDemo(user) {
         ?.Matematik ||
       []
     )
-      .slice(0, 5)
-      .map(topic => [
-        'TYT',
-        'Matematik',
-        topic.id,
-        true,
-        false
-      ]),
+      .slice(
+        0,
+        5
+      )
+      .map(
+        topic => [
+          'TYT',
+          'Matematik',
+          topic.id,
+          true,
+          false
+        ]
+      ),
 
     ...(
       curriculum
@@ -590,9 +661,15 @@ async function seedAdminDemo(user) {
         ?.Türkçe ||
       []
     )
-      .slice(0, 3)
+      .slice(
+        0,
+        3
+      )
       .map(
-        (topic, i) => [
+        (
+          topic,
+          i
+        ) => [
           'TYT',
           'Türkçe',
           topic.id,
@@ -607,9 +684,15 @@ async function seedAdminDemo(user) {
         ?.[aytSubject] ||
       []
     )
-      .slice(0, 3)
+      .slice(
+        0,
+        3
+      )
       .map(
-        (topic, i) => [
+        (
+          topic,
+          i
+        ) => [
           'AYT',
           aytSubject,
           topic.id,
@@ -618,6 +701,7 @@ async function seedAdminDemo(user) {
         ]
       )
   ];
+
 
   for (
     const [
@@ -666,7 +750,8 @@ async function seedAdminDemo(user) {
           EXCLUDED.review_needed,
         completed_at =
           EXCLUDED.completed_at,
-        updated_at = NOW()`,
+        updated_at =
+          NOW()`,
       [
         user.id,
         exam,
@@ -678,10 +763,12 @@ async function seedAdminDemo(user) {
     );
   }
 
+
   return {
     alreadySeeded: false
   };
 }
+
 
 export default async function handler(
   req,
@@ -691,16 +778,21 @@ export default async function handler(
     !onlyMethods(
       req,
       res,
-      ['GET', 'POST']
+      [
+        'GET',
+        'POST'
+      ]
     )
   ) {
     return;
   }
 
+
   res.setHeader(
     'Cache-Control',
     'no-store'
   );
+
 
   const user =
     await requireUser(
@@ -711,9 +803,15 @@ export default async function handler(
       }
     );
 
-  if (!user) return;
+  if (!user) {
+    return;
+  }
 
-  if (req.method === 'GET') {
+
+  if (
+    req.method ===
+    'GET'
+  ) {
     const result =
       await query(
         `SELECT
@@ -730,11 +828,14 @@ export default async function handler(
          LIMIT 100`
       );
 
-    return res.status(200).json({
-      codes:
-        result.rows
-    });
+    return res
+      .status(200)
+      .json({
+        codes:
+          result.rows
+      });
   }
+
 
   const action =
     text(
@@ -742,7 +843,11 @@ export default async function handler(
       30
     );
 
-  if (action === 'previewPlan') {
+
+  if (
+    action ===
+    'previewPlan'
+  ) {
     const plan =
       text(
         req.body?.plan,
@@ -754,36 +859,56 @@ export default async function handler(
         'none',
         'basic',
         'ai_pro'
-      ].includes(plan)
+      ].includes(
+        plan
+      )
     ) {
-      return res.status(400).json({
-        error:
-          'Geçersiz test paketi.'
-      });
+      return res
+        .status(400)
+        .json({
+          error:
+            'Geçersiz test paketi.'
+        });
     }
 
     res.setHeader(
       'Set-Cookie',
-      adminPreviewCookie(plan)
+      adminPreviewCookie(
+        plan
+      )
     );
 
-    return res.status(200).json({
-      ok: true,
-      plan
-    });
+    return res
+      .status(200)
+      .json({
+        ok: true,
+        plan
+      });
   }
 
-  if (action === 'seedDemo') {
+
+  if (
+    action ===
+    'seedDemo'
+  ) {
     const result =
-      await seedAdminDemo(user);
+      await seedAdminDemo(
+        user
+      );
 
-    return res.status(200).json({
-      ok: true,
-      ...result
-    });
+    return res
+      .status(200)
+      .json({
+        ok: true,
+        ...result
+      });
   }
 
-  if (action === 'generateCode') {
+
+  if (
+    action ===
+    'generateCode'
+  ) {
     const packageKey =
       text(
         req.body?.packageKey,
@@ -816,13 +941,15 @@ export default async function handler(
       ];
 
     if (!pkg) {
-      return res.status(400).json({
-        error:
-          'Geçersiz paket.'
-      });
+      return res
+        .status(400)
+        .json({
+          error:
+            'Geçersiz paket.'
+        });
     }
 
-       if (
+    if (
       rawAssignedEmail &&
       (
         !assignedEmail ||
@@ -831,10 +958,12 @@ export default async function handler(
         )
       )
     ) {
-      return res.status(400).json({
-        error:
-          'Geçerli bir e-posta gir.'
-      });
+      return res
+        .status(400)
+        .json({
+          error:
+            'Geçerli bir e-posta gir.'
+        });
     }
 
     const codes = [];
@@ -851,15 +980,23 @@ export default async function handler(
           assignedEmail
         );
 
-      codes.push(code);
+      codes.push(
+        code
+      );
     }
 
-    return res.status(201).json({
-      codes
-    });
+    return res
+      .status(201)
+      .json({
+        codes
+      });
   }
 
-   if (action === 'setPlan') {
+
+  if (
+    action ===
+    'setPlan'
+  ) {
     const email =
       normalizeEmail(
         req.body?.email
@@ -878,6 +1015,7 @@ export default async function handler(
         3650
       ) || 30;
 
+
     if (
       !email ||
       !/^\S+@\S+\.\S+$/.test(
@@ -887,13 +1025,18 @@ export default async function handler(
         'none',
         'basic',
         'ai_pro'
-      ].includes(plan)
+      ].includes(
+        plan
+      )
     ) {
-      return res.status(400).json({
-        error:
-          'Bilgileri kontrol et.'
-      });
+      return res
+        .status(400)
+        .json({
+          error:
+            'Bilgileri kontrol et.'
+        });
     }
+
 
     const client =
       await db.connect();
@@ -902,6 +1045,7 @@ export default async function handler(
       await client.query(
         'BEGIN'
       );
+
 
       const before =
         await client.query(
@@ -913,8 +1057,11 @@ export default async function handler(
            FROM yks2_users
            WHERE email = $1
            FOR UPDATE`,
-          [email]
+          [
+            email
+          ]
         );
+
 
       if (
         !before.rows.length
@@ -923,14 +1070,18 @@ export default async function handler(
           'ROLLBACK'
         );
 
-        return res.status(404).json({
-          error:
-            'Kullanıcı bulunamadı.'
-        });
+        return res
+          .status(404)
+          .json({
+            error:
+              'Kullanıcı bulunamadı.'
+          });
       }
+
 
       const previous =
         before.rows[0];
+
 
       const expiry =
         plan === 'none'
@@ -940,6 +1091,7 @@ export default async function handler(
               days *
                 86400000
             );
+
 
       const result =
         await client.query(
@@ -961,6 +1113,7 @@ export default async function handler(
           ]
         );
 
+
       await client.query(
         `INSERT INTO yks2_subscription_events(
           user_id,
@@ -973,7 +1126,14 @@ export default async function handler(
           activation_type
         )
         VALUES(
-          $1,$2,$3,$4,$5,NOW(),$6,'admin_override'
+          $1,
+          $2,
+          $3,
+          $4,
+          $5,
+          NOW(),
+          $6,
+          'admin_override'
         )`,
         [
           previous.id,
@@ -987,127 +1147,52 @@ export default async function handler(
         ]
       );
 
+
       await client.query(
         'COMMIT'
       );
 
-      return res.status(200).json({
-        user:
-          result.rows[0]
-      });
+
+      return res
+        .status(200)
+        .json({
+          user:
+            result.rows[0]
+        });
+
 
     } catch (err) {
       await client
-        .query('ROLLBACK')
-        .catch(() => {});
+        .query(
+          'ROLLBACK'
+        )
+        .catch(
+          () => {}
+        );
 
       console.error(
         'Admin setPlan error:',
         err
       );
 
-      return res.status(500).json({
-        error:
-          'Paket güncellenemedi.'
-      });
+      return res
+        .status(500)
+        .json({
+          error:
+            'Paket güncellenemedi.'
+        });
+
 
     } finally {
       client.release();
     }
   }
 
-    const before =
-      await query(
-        `SELECT
-          id,
-          email,
-          plan,
-          plan_expires_at
-         FROM yks2_users
-         WHERE email = $1
-         LIMIT 1`,
-        [email]
-      );
 
-    if (!before.rows.length) {
-      return res.status(404).json({
-        error:
-          'Kullanıcı bulunamadı.'
-      });
-    }
-
-    const previous =
-      before.rows[0];
-
-    const expiry =
-      plan === 'none'
-        ? null
-        : new Date(
-            Date.now() +
-            days * 86400000
-          );
-
-    const result =
-      await query(
-        `UPDATE yks2_users
-         SET
-           plan = $1,
-           plan_expires_at = $2,
-           updated_at = NOW()
-         WHERE id = $3
-         RETURNING
-           id,
-           email,
-           plan,
-           plan_expires_at`,
-        [
-          plan,
-          expiry,
-          previous.id
-        ]
-      );
-
-    await query(
-      `INSERT INTO yks2_subscription_events(
-        user_id,
-        package_key,
-        previous_plan,
-        new_plan,
-        previous_expires_at,
-        starts_at,
-        expires_at,
-        activation_type
-      )
-      VALUES(
-        $1,
-        $2,
-        $3,
-        $4,
-        $5,
-        NOW(),
-        $6,
-        'admin_override'
-      )`,
-      [
-        previous.id,
-        `admin_${plan}`,
-        previous.plan ||
-          'none',
-        plan,
-        previous.plan_expires_at ||
-          null,
-        expiry
-      ]
-    );
-
-    return res.status(200).json({
-      user:
-        result.rows[0]
+  return res
+    .status(400)
+    .json({
+      error:
+        'Geçersiz admin işlemi.'
     });
-  }
-
-  return res.status(400).json({
-    error:
-      'Geçersiz admin işlemi.'
-  });
 }
