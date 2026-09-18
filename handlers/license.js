@@ -1,129 +1,154 @@
 import { requireUser } from '../lib/auth.js';
-import { onlyMethods, text } from '../lib/http.js';
+
+import {
+  onlyMethods,
+  text,
+  noStore
+} from '../lib/http.js';
+
 import { db } from '../lib/db.js';
-import { LICENSE_PACKAGES, accessFor, effectivePlan } from '../lib/plans.js';
+
+import {
+  LICENSE_PACKAGES,
+  accessFor,
+  effectivePlan
+} from '../lib/plans.js';
 
 const DAY_MS = 86400000;
 
 function asDate(value) {
-  if (!value) return null;
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? null : d;
+  if (!value) {
+    return null;
+  }
+
+  const date =
+    new Date(value);
+
+  return Number.isNaN(
+    date.getTime()
+  )
+    ? null
+    : date;
 }
 
-export default async function handler(req, res) {
-  if (!onlyMethods(req, res, ['GET', 'POST'])) return;
+export default async function handler(
+  req,
+  res
+) {
+  if (
+    !onlyMethods(
+      req,
+      res,
+      ['GET', 'POST']
+    )
+  ) {
+    return;
+  }
 
-  const user = await requireUser(req, res);
+  noStore(res);
+
+  const user =
+    await requireUser(
+      req,
+      res
+    );
+
   if (!user) return;
 
   if (req.method === 'GET') {
-    const history = await db.query(
-      `SELECT
-        id,
-        package_key,
-        previous_plan,
-        new_plan,
-        previous_expires_at,
-        starts_at,
-        expires_at,
-        activation_type,
-        created_at
-       FROM yks2_subscription_events
-       WHERE user_id = $1
-       ORDER BY created_at DESC
-       LIMIT 50`,
-      [user.id]
-    );
+    const history =
+      await db.query(
+        `SELECT
+          id,
+          package_key,
+          previous_plan,
+          new_plan,
+          previous_expires_at,
+          starts_at,
+          expires_at,
+          activation_type,
+          created_at
+         FROM yks2_subscription_events
+         WHERE user_id = $1
+         ORDER BY created_at DESC
+         LIMIT 50`,
+        [user.id]
+      );
 
     return res.status(200).json({
-      packages: LICENSE_PACKAGES,
-      access: user.access,
-      expiresAt: user.plan_expires_at,
-      history: history.rows
+      packages:
+        LICENSE_PACKAGES,
+
+      access:
+        user.access,
+
+      expiresAt:
+        user.plan_expires_at,
+
+      history:
+        history.rows
     });
   }
 
-  const code = text(req.body?.code, 80).toUpperCase();
+  const code =
+    text(
+      req.body?.code,
+      80
+    ).toUpperCase();
 
   if (!code) {
     return res.status(400).json({
-      error: 'Lisans kodu gerekli.'
+      error:
+        'Lisans kodu gerekli.'
     });
   }
 
-  const client = await db.connect();
+  const client =
+    await db.connect();
 
   try {
-    await client.query('BEGIN');
-
-    const userLock = await client.query(
-      `SELECT *
-       FROM yks2_users
-       WHERE id = $1
-       FOR UPDATE`,
-      [user.id]
+    await client.query(
+      'BEGIN'
     );
 
-    const lockedUser = userLock.rows[0];
+    const userResult =
+      await client.query(
+        `SELECT
+          id,
+          email,
+          role,
+          plan,
+          plan_expires_at
+         FROM yks2_users
+         WHERE id = $1
+         FOR UPDATE`,
+        [user.id]
+      );
+
+    const lockedUser =
+      userResult.rows[0];
 
     if (!lockedUser) {
-      await client.query('ROLLBACK');
+      await client.query(
+        'ROLLBACK'
+      );
 
       return res.status(404).json({
-        error: 'Kullanıcı bulunamadı.'
+        error:
+          'Kullanıcı bulunamadı.'
       });
     }
 
-    const licenseResult = await client.query(
-      `SELECT *
-       FROM yks2_license_codes
-       WHERE code = $1
-       FOR UPDATE`,
-      [code]
-    );
-
-    const license = licenseResult.rows[0];
-
-    if (!license) {
-      await client.query('ROLLBACK');
-
-      return res.status(404).json({
-        error: 'Lisans kodu bulunamadı.'
-      });
-    }
-
-    if (license.used_by || license.used_at) {
-      await client.query('ROLLBACK');
-
-      return res.status(409).json({
-        error: 'Bu lisans kodu daha önce kullanılmış.'
-      });
-    }
-
+    /*
+      Admin hesabı hiçbir lisans kodunu
+      tüketmez.
+    */
     if (
-      license.assigned_email &&
-      license.assigned_email.toLowerCase() !== lockedUser.email.toLowerCase()
+      lockedUser.role === 'admin'
     ) {
-      await client.query('ROLLBACK');
-
-      return res.status(403).json({
-        error: 'Bu kod başka bir e-posta için oluşturulmuş.'
-      });
-    }
-
-    const packageInfo = LICENSE_PACKAGES[license.package_key];
-
-    if (!packageInfo) {
-      await client.query('ROLLBACK');
-
-      return res.status(400).json({
-        error: 'Kodun paket türü geçersiz.'
-      });
-    }
-
-    if (lockedUser.role === 'admin') {
-      await client.query('ROLLBACK');
+      await client.query(
+        'ROLLBACK'
+      );
 
       return res.status(409).json({
         error:
@@ -131,13 +156,128 @@ export default async function handler(req, res) {
       });
     }
 
-    const currentPlan = effectivePlan(lockedUser);
+    const licenseResult =
+      await client.query(
+        `SELECT
+          id,
+          code,
+          package_key,
+          duration_days,
+          assigned_email,
+          used_by,
+          used_at,
+          source_order_id
+         FROM yks2_license_codes
+         WHERE code = $1
+         FOR UPDATE`,
+        [code]
+      );
 
-    const now = new Date();
+    const license =
+      licenseResult.rows[0];
 
-    const currentExpiry = asDate(
-      lockedUser.plan_expires_at
-    );
+    if (!license) {
+      await client.query(
+        'ROLLBACK'
+      );
+
+      return res.status(404).json({
+        error:
+          'Lisans kodu bulunamadı.'
+      });
+    }
+
+    if (
+      license.used_by ||
+      license.used_at
+    ) {
+      await client.query(
+        'ROLLBACK'
+      );
+
+      return res.status(409).json({
+        error:
+          'Bu lisans kodu daha önce kullanılmış.'
+      });
+    }
+
+    if (
+      license.assigned_email &&
+      license.assigned_email
+        .trim()
+        .toLowerCase() !==
+        lockedUser.email
+          .trim()
+          .toLowerCase()
+    ) {
+      await client.query(
+        'ROLLBACK'
+      );
+
+      return res.status(403).json({
+        error:
+          'Bu kod başka bir e-posta için oluşturulmuş.'
+      });
+    }
+
+    /*
+      Paket mutlaka şu an uygulamada
+      aktif olan paketlerden biri olmalı.
+
+      Böylece eski ai_pro_yearly kodları
+      yıllık paket tekrar açılana kadar
+      kullanılamaz.
+    */
+    const packageInfo =
+      LICENSE_PACKAGES[
+        license.package_key
+      ];
+
+    if (!packageInfo) {
+      await client.query(
+        'ROLLBACK'
+      );
+
+      return res.status(400).json({
+        error:
+          'Bu lisans paketinin kullanımı şu anda aktif değil.'
+      });
+    }
+
+    const durationDays =
+      Number(
+        license.duration_days
+      );
+
+    if (
+      !Number.isInteger(
+        durationDays
+      ) ||
+      durationDays <= 0 ||
+      durationDays > 3650
+    ) {
+      await client.query(
+        'ROLLBACK'
+      );
+
+      return res.status(400).json({
+        error:
+          'Lisans süresi geçersiz.'
+      });
+    }
+
+    const currentPlan =
+      effectivePlan(
+        lockedUser
+      );
+
+    const now =
+      new Date();
+
+    const currentExpiry =
+      asDate(
+        lockedUser.plan_expires_at
+      );
 
     const active =
       currentPlan !== 'none' &&
@@ -145,19 +285,17 @@ export default async function handler(req, res) {
       currentExpiry > now;
 
     /*
-     * Aktif AI Pro varken Temel pakete düşürmeye izin vermiyoruz.
-     *
-     * Böylece öğrenci yanlışlıkla daha düşük paket girip
-     * mevcut Pro süresini kaybetmez.
-     *
-     * Lisans kodu da kullanılmamış kalır.
-     */
+      Aktif AI Pro varken Basic kodu
+      mevcut Pro erişimini düşürmesin.
+    */
     if (
       currentPlan === 'ai_pro' &&
       active &&
       packageInfo.plan === 'basic'
     ) {
-      await client.query('ROLLBACK');
+      await client.query(
+        'ROLLBACK'
+      );
 
       return res.status(409).json({
         error:
@@ -165,71 +303,60 @@ export default async function handler(req, res) {
       });
     }
 
-    let activationType = 'new';
+    let activationType =
+      'new';
 
-    let startsAt = now;
+    let startsAt =
+      now;
 
-    let baseDate = now;
+    let baseDate =
+      now;
 
     /*
-     * AYNI PAKETİ YENİLEME
-     *
-     * Örneğin:
-     * AI Pro'da 8 gün kaldı.
-     * Öğrenci tekrar 30 günlük Pro aldı.
-     *
-     * Sonuç:
-     * 8 + 30 = 38 gün
-     */
+      Aynı paket yenileniyorsa kalan süre
+      korunur.
+    */
     if (
       active &&
-      currentPlan === packageInfo.plan
+      currentPlan ===
+        packageInfo.plan
     ) {
-      activationType = 'renewal';
+      activationType =
+        'renewal';
 
-      startsAt = currentExpiry;
+      startsAt =
+        currentExpiry;
 
-      baseDate = currentExpiry;
+      baseDate =
+        currentExpiry;
     }
 
     /*
-     * TEMEL -> AI PRO YÜKSELTME
-     *
-     * Öğrenci kalan Temel süresini kaybetmez.
-     *
-     * Örneğin:
-     * Temel paketten 12 gün kaldı.
-     * 30 günlük AI Pro satın aldı.
-     *
-     * Sonuç:
-     * 12 + 30 = 42 gün AI Pro
-     */
+      Basic -> AI Pro yükseltmede
+      mevcut Basic süresi kaybolmaz.
+    */
     else if (
       active &&
       currentPlan === 'basic' &&
       packageInfo.plan === 'ai_pro'
     ) {
-      activationType = 'upgrade';
+      activationType =
+        'upgrade';
 
-      startsAt = now;
+      startsAt =
+        now;
 
-      baseDate = currentExpiry;
+      baseDate =
+        currentExpiry;
     }
 
-    const durationDays = Number(
-      license.duration_days ||
-      packageInfo.durationDays
-    );
+    const expiresAt =
+      new Date(
+        baseDate.getTime() +
+        durationDays *
+          DAY_MS
+      );
 
-    const expiresAt = new Date(
-      baseDate.getTime() +
-      durationDays * DAY_MS
-    );
-
-    /*
-     * Kullanıcının hesabı değişmez.
-     * Sadece paket ve paket bitiş tarihi güncellenir.
-     */
     await client.query(
       `UPDATE yks2_users
        SET
@@ -245,26 +372,39 @@ export default async function handler(req, res) {
     );
 
     /*
-     * Lisans kodunu bu kullanıcıya kilitle.
-     * Aynı kod ikinci kez kullanılamaz.
-     */
-    await client.query(
-      `UPDATE yks2_license_codes
-       SET
-         used_by = $1,
-         used_at = NOW()
-       WHERE id = $2`,
-      [
-        lockedUser.id,
-        license.id
-      ]
-    );
+      Kod tüketilir.
+    */
+    const usedResult =
+      await client.query(
+        `UPDATE yks2_license_codes
+         SET
+           used_by = $1,
+           used_at = NOW()
+         WHERE id = $2
+           AND used_by IS NULL
+           AND used_at IS NULL
+         RETURNING id`,
+        [
+          lockedUser.id,
+          license.id
+        ]
+      );
 
-    /*
-     * Abonelik geçmişini kaydet.
-     */
+    if (
+      !usedResult.rows.length
+    ) {
+      await client.query(
+        'ROLLBACK'
+      );
+
+      return res.status(409).json({
+        error:
+          'Bu lisans kodu daha önce kullanılmış.'
+      });
+    }
+
     await client.query(
-      `INSERT INTO yks2_subscription_events (
+      `INSERT INTO yks2_subscription_events(
         user_id,
         license_code_id,
         source_order_id,
@@ -276,48 +416,60 @@ export default async function handler(req, res) {
         expires_at,
         activation_type
       )
-      VALUES (
-        $1,
-        $2,
-        $3,
-        $4,
-        $5,
-        $6,
-        $7,
-        $8,
-        $9,
-        $10
+      VALUES(
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10
       )`,
       [
         lockedUser.id,
         license.id,
-        license.source_order_id || null,
+        license.source_order_id ||
+          null,
         license.package_key,
         currentPlan,
         packageInfo.plan,
-        active ? currentExpiry : null,
+        active
+          ? currentExpiry
+          : null,
         startsAt,
         expiresAt,
         activationType
       ]
     );
 
-    await client.query('COMMIT');
+    await client.query(
+      'COMMIT'
+    );
 
     const updatedUser = {
       ...lockedUser,
-      plan: packageInfo.plan,
-      plan_expires_at: expiresAt,
-      effectivePlan: packageInfo.plan
+
+      plan:
+        packageInfo.plan,
+
+      plan_expires_at:
+        expiresAt,
+
+      effectivePlan:
+        packageInfo.plan
     };
 
     return res.status(200).json({
       ok: true,
-      package: license.package_key,
-      plan: packageInfo.plan,
+
+      package:
+        license.package_key,
+
+      plan:
+        packageInfo.plan,
+
       activationType,
+
       expiresAt,
-      access: accessFor(updatedUser)
+
+      access:
+        accessFor(
+          updatedUser
+        )
     });
 
   } catch (err) {
@@ -331,7 +483,8 @@ export default async function handler(req, res) {
     );
 
     return res.status(500).json({
-      error: 'Lisans etkinleştirilemedi.'
+      error:
+        'Lisans etkinleştirilemedi.'
     });
 
   } finally {
