@@ -822,9 +822,14 @@ export default async function handler(
       });
     }
 
-    if (
+       if (
       rawAssignedEmail &&
-      !assignedEmail
+      (
+        !assignedEmail ||
+        !/^\S+@\S+\.\S+$/.test(
+          assignedEmail
+        )
+      )
     ) {
       return res.status(400).json({
         error:
