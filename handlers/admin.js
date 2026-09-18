@@ -859,7 +859,7 @@ export default async function handler(
     });
   }
 
-  if (action === 'setPlan') {
+   if (action === 'setPlan') {
     const email =
       normalizeEmail(
         req.body?.email
@@ -880,6 +880,9 @@ export default async function handler(
 
     if (
       !email ||
+      !/^\S+@\S+\.\S+$/.test(
+        email
+      ) ||
       ![
         'none',
         'basic',
@@ -891,6 +894,127 @@ export default async function handler(
           'Bilgileri kontrol et.'
       });
     }
+
+    const client =
+      await db.connect();
+
+    try {
+      await client.query(
+        'BEGIN'
+      );
+
+      const before =
+        await client.query(
+          `SELECT
+            id,
+            email,
+            plan,
+            plan_expires_at
+           FROM yks2_users
+           WHERE email = $1
+           FOR UPDATE`,
+          [email]
+        );
+
+      if (
+        !before.rows.length
+      ) {
+        await client.query(
+          'ROLLBACK'
+        );
+
+        return res.status(404).json({
+          error:
+            'Kullanıcı bulunamadı.'
+        });
+      }
+
+      const previous =
+        before.rows[0];
+
+      const expiry =
+        plan === 'none'
+          ? null
+          : new Date(
+              Date.now() +
+              days *
+                86400000
+            );
+
+      const result =
+        await client.query(
+          `UPDATE yks2_users
+           SET
+             plan = $1,
+             plan_expires_at = $2,
+             updated_at = NOW()
+           WHERE id = $3
+           RETURNING
+             id,
+             email,
+             plan,
+             plan_expires_at`,
+          [
+            plan,
+            expiry,
+            previous.id
+          ]
+        );
+
+      await client.query(
+        `INSERT INTO yks2_subscription_events(
+          user_id,
+          package_key,
+          previous_plan,
+          new_plan,
+          previous_expires_at,
+          starts_at,
+          expires_at,
+          activation_type
+        )
+        VALUES(
+          $1,$2,$3,$4,$5,NOW(),$6,'admin_override'
+        )`,
+        [
+          previous.id,
+          `admin_${plan}`,
+          previous.plan ||
+            'none',
+          plan,
+          previous.plan_expires_at ||
+            null,
+          expiry
+        ]
+      );
+
+      await client.query(
+        'COMMIT'
+      );
+
+      return res.status(200).json({
+        user:
+          result.rows[0]
+      });
+
+    } catch (err) {
+      await client
+        .query('ROLLBACK')
+        .catch(() => {});
+
+      console.error(
+        'Admin setPlan error:',
+        err
+      );
+
+      return res.status(500).json({
+        error:
+          'Paket güncellenemedi.'
+      });
+
+    } finally {
+      client.release();
+    }
+  }
 
     const before =
       await query(
