@@ -1,9 +1,11 @@
 -- YKS Master 360
 -- PostgreSQL schema
 --
--- Bu dosya hem sıfırdan kurulum hem de mevcut
--- veritabanının eksik kolonlarını tamamlamak için
--- idempotent tutulur.
+-- Bu dosya:
+-- 1. Sıfırdan kurulumda tabloları oluşturur.
+-- 2. Mevcut veritabanında eksik kolonları tamamlar.
+-- 3. Mümkün olduğunca idempotent tutulur.
+
 
 -- =========================================================
 -- USERS
@@ -47,6 +49,15 @@ CREATE TABLE IF NOT EXISTS yks2_users (
       role IN (
         'user',
         'admin'
+      )
+    ),
+
+  admin_preview_plan TEXT
+    CHECK (
+      admin_preview_plan IN (
+        'none',
+        'basic',
+        'ai_pro'
       )
     ),
 
@@ -97,7 +108,11 @@ CREATE TABLE IF NOT EXISTS yks2_users (
   last_login_at TIMESTAMPTZ
 );
 
--- Mevcut veritabanları için migration güvenliği
+
+ALTER TABLE yks2_users
+ADD COLUMN IF NOT EXISTS
+  admin_preview_plan TEXT;
+
 
 ALTER TABLE yks2_users
 ADD COLUMN IF NOT EXISTS
@@ -105,33 +120,41 @@ ADD COLUMN IF NOT EXISTS
   NOT NULL
   DEFAULT 0;
 
+
 ALTER TABLE yks2_users
 ADD COLUMN IF NOT EXISTS
   email_verified_at TIMESTAMPTZ;
+
 
 ALTER TABLE yks2_users
 ADD COLUMN IF NOT EXISTS
   email_verify_token_hash TEXT;
 
+
 ALTER TABLE yks2_users
 ADD COLUMN IF NOT EXISTS
   email_verify_expires_at TIMESTAMPTZ;
+
 
 ALTER TABLE yks2_users
 ADD COLUMN IF NOT EXISTS
   email_verify_last_sent_at TIMESTAMPTZ;
 
+
 ALTER TABLE yks2_users
 ADD COLUMN IF NOT EXISTS
   password_reset_token_hash TEXT;
+
 
 ALTER TABLE yks2_users
 ADD COLUMN IF NOT EXISTS
   password_reset_expires_at TIMESTAMPTZ;
 
+
 ALTER TABLE yks2_users
 ADD COLUMN IF NOT EXISTS
   password_reset_last_sent_at TIMESTAMPTZ;
+
 
 ALTER TABLE yks2_users
 ADD COLUMN IF NOT EXISTS
@@ -139,13 +162,17 @@ ADD COLUMN IF NOT EXISTS
   NOT NULL
   DEFAULT 0;
 
+
 ALTER TABLE yks2_users
 ADD COLUMN IF NOT EXISTS
   locked_until TIMESTAMPTZ;
 
+
 CREATE INDEX IF NOT EXISTS
   idx_yks2_users_plan
-ON yks2_users(plan);
+ON yks2_users(
+  plan
+);
 
 
 -- =========================================================
@@ -252,6 +279,38 @@ yks2_daily_plans (
     DEFAULT NOW()
 );
 
+
+ALTER TABLE yks2_daily_plans
+ADD COLUMN IF NOT EXISTS
+  exam TEXT
+  NOT NULL
+  DEFAULT 'TYT';
+
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname =
+      'chk_yks2_daily_plans_exam'
+  ) THEN
+
+    ALTER TABLE yks2_daily_plans
+    ADD CONSTRAINT
+      chk_yks2_daily_plans_exam
+    CHECK (
+      exam IN (
+        'TYT',
+        'AYT'
+      )
+    );
+
+  END IF;
+END
+$$;
+
+
 CREATE INDEX IF NOT EXISTS
   idx_yks2_daily_plans_user_date
 ON yks2_daily_plans(
@@ -296,6 +355,7 @@ yks2_exam_results (
     NOT NULL
     DEFAULT NOW()
 );
+
 
 CREATE INDEX IF NOT EXISTS
   idx_yks2_exam_results_user_date
@@ -377,6 +437,38 @@ yks2_resources (
     DEFAULT NOW()
 );
 
+
+ALTER TABLE yks2_resources
+ADD COLUMN IF NOT EXISTS
+  exam TEXT
+  NOT NULL
+  DEFAULT 'TYT';
+
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname =
+      'chk_yks2_resources_exam'
+  ) THEN
+
+    ALTER TABLE yks2_resources
+    ADD CONSTRAINT
+      chk_yks2_resources_exam
+    CHECK (
+      exam IN (
+        'TYT',
+        'AYT'
+      )
+    );
+
+  END IF;
+END
+$$;
+
+
 CREATE INDEX IF NOT EXISTS
   idx_yks2_resources_user_exam_subject
 ON yks2_resources(
@@ -450,12 +542,14 @@ yks2_question_logs (
     DEFAULT NOW()
 );
 
+
 CREATE INDEX IF NOT EXISTS
   idx_yks2_question_logs_user_date
 ON yks2_question_logs(
   user_id,
   log_date DESC
 );
+
 
 CREATE INDEX IF NOT EXISTS
   idx_yks2_question_logs_subject
@@ -512,6 +606,7 @@ yks2_study_sessions (
     NOT NULL
     DEFAULT NOW()
 );
+
 
 CREATE INDEX IF NOT EXISTS
   idx_yks2_study_sessions_user_date
@@ -610,6 +705,7 @@ yks2_mistake_archive (
     NOT NULL
     DEFAULT NOW()
 );
+
 
 CREATE INDEX IF NOT EXISTS
   idx_yks2_mistakes_user_subject
@@ -744,12 +840,14 @@ yks2_subscription_events (
     DEFAULT NOW()
 );
 
+
 CREATE INDEX IF NOT EXISTS
   idx_yks2_subscription_events_user_created
 ON yks2_subscription_events(
   user_id,
   created_at DESC
 );
+
 
 CREATE INDEX IF NOT EXISTS
   idx_yks2_subscription_events_order
@@ -818,11 +916,13 @@ yks2_duels (
   )
 );
 
+
 CREATE INDEX IF NOT EXISTS
   idx_yks2_duels_owner
 ON yks2_duels(
   owner_user_id
 );
+
 
 CREATE INDEX IF NOT EXISTS
   idx_yks2_duels_challenger
@@ -860,11 +960,13 @@ yks2_ai_usage (
     DEFAULT NOW()
 );
 
+
 ALTER TABLE yks2_ai_usage
 ADD COLUMN IF NOT EXISTS
   cost_usd NUMERIC(12,6)
   NOT NULL
   DEFAULT 0;
+
 
 CREATE INDEX IF NOT EXISTS
   idx_yks2_ai_usage_user_action_date
@@ -905,6 +1007,7 @@ yks2_activity_log (
     NOT NULL
     DEFAULT NOW()
 );
+
 
 CREATE INDEX IF NOT EXISTS
   idx_yks2_activity_log_user_date
