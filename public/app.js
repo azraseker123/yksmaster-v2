@@ -39,7 +39,29 @@ examAnalysis: ['AI PRO', 'Deneme Analizi'],
 };
 
 function esc(v=''){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
-function fmtDate(v){if(!v)return '—';try{return new Intl.DateTimeFormat('tr-TR',{day:'2-digit',month:'short',year:'numeric'}).format(new Date(v));}catch{return v;}}
+function fmtDate(v){
+  if(!v)return '—';
+
+  try{
+    const d=new Date(v);
+
+    if(Number.isNaN(d.getTime())){
+      return '—';
+    }
+
+    return new Intl.DateTimeFormat(
+      'tr-TR',
+      {
+        day:'2-digit',
+        month:'short',
+        year:'numeric'
+      }
+    ).format(d);
+
+  }catch{
+    return '—';
+  }
+}
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function trackLabel(v){return ({sayisal:'Sayısal',esit_agirlik:'Eşit Ağırlık',sozel:'Sözel'})[v]||v;}
 function planLabel(v){return ({none:'Paket Yok',basic:'Temel',ai_pro:'AI Pro'})[v]||v;}
