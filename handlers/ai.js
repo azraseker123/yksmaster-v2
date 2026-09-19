@@ -34,6 +34,7 @@ const DAILY_LIMITS = {
   recovery: 3,
   exam_analysis: 5
 };
+
 const MONTHLY_LIMITS = {
   coach: 100,
   flashcards: 40,
@@ -44,6 +45,7 @@ const MONTHLY_LIMITS = {
   recovery: 10,
   exam_analysis: 10
 };
+
 
 async function enforceDailyLimit(user, action) {
   if (user.role === 'admin') return;
@@ -73,11 +75,13 @@ async function enforceDailyLimit(user, action) {
       'Günlük AI kullanım sınırına ulaştın. Yarın yeniden kullanabilirsin.'
     );
 
-   err.status = 429;
-err.code = 'AI_LIMIT';
-throw err;
+    err.status = 429;
+    err.code = 'AI_LIMIT';
+    throw err;
   }
 }
+
+
 async function enforceMonthlyLimit(
   user,
   action
@@ -184,6 +188,7 @@ async function enforceMonthlyLimit(
     throw err;
   }
 }
+
 
 /*
   Bütün metin üreten AI özellikleri için ortak kurallar.
@@ -437,6 +442,8 @@ function normalizeProgramLabel(value = '') {
     .replace(/\s+/g, ' ')
     .trim();
 }
+
+
 function getCurriculumProgressState(ctx) {
   const rows = Array.isArray(ctx?.curriculumProgress)
     ? ctx.curriculumProgress
@@ -552,6 +559,7 @@ function isCompletedWithoutReview(
     !reviewNeeded.has(key)
   );
 }
+
 
 function findCanonicalSubject(curriculum, exam, subject) {
   const subjects =
@@ -809,6 +817,8 @@ function validateProgram(
           { status: 502 }
         );
       }
+
+
       /*
         Tamamlanmış ve tekrar gerektirmeyen
         konuyu backend kabul etmez.
@@ -837,6 +847,7 @@ function validateProgram(
           { status: 502 }
         );
       }
+
 
       /*
         Kullanıcıya AI'ın yaklaşık yazdığı isim
@@ -879,19 +890,19 @@ function aiErrorResponse(err, res) {
     err?.response?.status;
 
 
- if (
-  status === 429
-) {
-  return res.status(429).json({
-  error:
-  (
-    err?.code === 'AI_LIMIT' ||
-    err?.code === 'AI_COST_LIMIT'
-  )
-    ? err.message
-    : 'AI şu anda yoğun. Birkaç saniye sonra yeniden dene.'
-  });
-}
+  if (
+    status === 429
+  ) {
+    return res.status(429).json({
+      error:
+        (
+          err?.code === 'AI_LIMIT' ||
+          err?.code === 'AI_COST_LIMIT'
+        )
+          ? err.message
+          : 'AI şu anda yoğun. Birkaç saniye sonra yeniden dene.'
+    });
+  }
 
 
   if (
@@ -942,15 +953,15 @@ export default async function handler(
   req,
   res
 ) {
- if (
-  !onlyMethods(
-    req,
-    res,
-    ['GET', 'POST']
-  )
-) {
-  return;
-}
+  if (
+    !onlyMethods(
+      req,
+      res,
+      ['GET', 'POST']
+    )
+  ) {
+    return;
+  }
 
 
   const user =
@@ -961,14 +972,15 @@ export default async function handler(
     );
 
 
-if (!user) return;
+  if (!user) return;
 
-noStore(res);
+  noStore(res);
 
-if (req.method === 'GET') {
-  try {
-    const result = await query(
-      `
+
+  if (req.method === 'GET') {
+    try {
+      const result = await query(
+        `
         SELECT
           action,
           COUNT(*)::int AS used
@@ -989,62 +1001,63 @@ if (req.method === 'GET') {
             ) AT TIME ZONE 'Europe/Istanbul'
           )
         GROUP BY action
-      `,
-      [user.id]
-    );
-
-    const usedByAction =
-      Object.fromEntries(
-        result.rows.map(row => [
-          row.action,
-          Number(row.used || 0)
-        ])
+        `,
+        [user.id]
       );
 
-    const names = {
-      coach: 'AI Koç',
-      flashcards: 'Flashcard',
-      test: 'Test Lab',
-      program: 'AI Çalışma Programı',
-      wrong_analysis: 'Yanlış Analizi',
-      solve_image: 'Fotoğraftan Soru Çözümü',
-      recovery: 'Beni Toparla',
-      exam_analysis: 'Deneme Analizi'
-    };
+      const usedByAction =
+        Object.fromEntries(
+          result.rows.map(row => [
+            row.action,
+            Number(row.used || 0)
+          ])
+        );
 
-    const items =
-      Object.entries(MONTHLY_LIMITS)
-        .map(([action, limit]) => {
-          const used =
-            usedByAction[action] || 0;
+      const names = {
+        coach: 'AI Koç',
+        flashcards: 'Flashcard',
+        test: 'Test Lab',
+        program: 'AI Çalışma Programı',
+        wrong_analysis: 'Yanlış Analizi',
+        solve_image: 'Fotoğraftan Soru Çözümü',
+        recovery: 'Beni Toparla',
+        exam_analysis: 'Deneme Analizi'
+      };
 
-          return {
-            action,
-            name:
-              names[action] || action,
-            used,
-            limit,
-            remaining:
-              Math.max(0, limit - used)
-          };
-        });
+      const items =
+        Object.entries(MONTHLY_LIMITS)
+          .map(([action, limit]) => {
+            const used =
+              usedByAction[action] || 0;
 
-    return res.status(200).json({
-      items
-    });
+            return {
+              action,
+              name:
+                names[action] || action,
+              used,
+              limit,
+              remaining:
+                Math.max(0, limit - used)
+            };
+          });
 
-  } catch (err) {
-    console.error(
-      'AI usage summary error:',
-      err
-    );
+      return res.status(200).json({
+        items
+      });
 
-    return res.status(500).json({
-      error:
-        'AI kullanım hakları yüklenemedi.'
-    });
+    } catch (err) {
+      console.error(
+        'AI usage summary error:',
+        err
+      );
+
+      return res.status(500).json({
+        error:
+          'AI kullanım hakları yüklenemedi.'
+      });
+    }
   }
-}
+
 
   const action =
     text(
@@ -1071,7 +1084,12 @@ if (req.method === 'GET') {
       user,
       action
     );
-await enforceMonthlyLimit(user, action);
+
+    await enforceMonthlyLimit(
+      user,
+      action
+    );
+
 
     const ctx =
       await context(user);
@@ -1112,11 +1130,14 @@ await enforceMonthlyLimit(user, action);
           )
         )
     };
+
+
     const availableCurriculumLabels =
       buildAvailableCurriculum(
         curriculum,
         ctx
       );
+
 
     /*
       AI KOÇ
@@ -1419,156 +1440,156 @@ Kurallar:
 
 
     /*
-    /*
-  AI PROGRAM
-*/
-if (
-  action === 'program'
-) {
-  const hours =
-    int(
-      req.body?.hoursPerDay,
-      1,
-      12
-    ) || 4;
+      AI PROGRAM
+    */
+    if (
+      action === 'program'
+    ) {
+      const hours =
+        int(
+          req.body?.hoursPerDay,
+          1,
+          12
+        ) || 4;
 
-  const note =
-    text(
-      req.body?.note,
-      1600
-    );
+      const note =
+        text(
+          req.body?.note,
+          1600
+        );
 
-  const start =
-    turkeyDate();
+      const start =
+        turkeyDate();
 
-  const dates =
-    Array.from(
-      { length: 7 },
-      (_, i) =>
-        addDays(start, i)
-    );
+      const dates =
+        Array.from(
+          { length: 7 },
+          (_, i) =>
+            addDays(start, i)
+        );
 
-  const targetMinutes =
-    hours * 60;
-
-  /*
-    Günlük görev sayısını çalışma süresine göre
-    belirliyoruz.
-  */
-  const minTasks =
-    hours <= 4
-      ? 4
-      : hours <= 7
-        ? 5
-        : 6;
-
-  const maxTasks =
-    hours <= 4
-      ? 5
-      : hours <= 7
-        ? 6
-        : 8;
+      const targetMinutes =
+        hours * 60;
 
 
-  const schema = {
-    type: 'object',
+      /*
+        Günlük görev sayısını çalışma süresine göre
+        belirliyoruz.
+      */
+      const minTasks =
+        hours <= 4
+          ? 4
+          : hours <= 7
+            ? 5
+            : 6;
 
-    properties: {
-      summary: {
-        type: 'string'
-      },
+      const maxTasks =
+        hours <= 4
+          ? 5
+          : hours <= 7
+            ? 6
+            : 8;
 
-      days: {
-        type: 'array',
-        minItems: 7,
-        maxItems: 7,
 
-        items: {
-          type: 'object',
+      const schema = {
+        type: 'object',
 
-          properties: {
-            date: {
-              type: 'string',
-              format: 'date'
-            },
-
-            tasks: {
-              type: 'array',
-              minItems: minTasks,
-              maxItems: maxTasks,
-
-              items: {
-                type: 'object',
-
-                properties: {
-                  exam: {
-                    type: 'string',
-                    enum: [
-                      'TYT',
-                      'AYT'
-                    ]
-                  },
-
-                  subject: {
-                    type: 'string'
-                  },
-
-                  topic: {
-                    type: 'string'
-                  },
-
-                  priority: {
-                    type: 'string',
-                    enum: [
-                      'high',
-                      'medium',
-                      'low'
-                    ]
-                  },
-
-                  reason: {
-                    type: 'string'
-                  }
-                },
-
-                required: [
-                  'exam',
-                  'subject',
-                  'topic',
-                  'priority',
-                  'reason'
-                ]
-              }
-            }
+        properties: {
+          summary: {
+            type: 'string'
           },
 
-          required: [
-            'date',
-            'tasks'
-          ]
-        }
-      }
-    },
+          days: {
+            type: 'array',
+            minItems: 7,
+            maxItems: 7,
 
-    required: [
-      'summary',
-      'days'
-    ]
-  };
+            items: {
+              type: 'object',
+
+              properties: {
+                date: {
+                  type: 'string',
+                  format: 'date'
+                },
+
+                tasks: {
+                  type: 'array',
+                  minItems: minTasks,
+                  maxItems: maxTasks,
+
+                  items: {
+                    type: 'object',
+
+                    properties: {
+                      exam: {
+                        type: 'string',
+                        enum: [
+                          'TYT',
+                          'AYT'
+                        ]
+                      },
+
+                      subject: {
+                        type: 'string'
+                      },
+
+                      topic: {
+                        type: 'string'
+                      },
+
+                      priority: {
+                        type: 'string',
+                        enum: [
+                          'high',
+                          'medium',
+                          'low'
+                        ]
+                      },
+
+                      reason: {
+                        type: 'string'
+                      }
+                    },
+
+                    required: [
+                      'exam',
+                      'subject',
+                      'topic',
+                      'priority',
+                      'reason'
+                    ]
+                  }
+                }
+              },
+
+              required: [
+                'date',
+                'tasks'
+              ]
+            }
+          }
+        },
+
+        required: [
+          'summary',
+          'days'
+        ]
+      };
 
 
-  const raw =
-    await geminiText({
-      userId:
-        user.id,
+      const raw =
+        await geminiText({
+          userId:
+            user.id,
 
-      action,
+          action,
 
-      model:
-        GEMINI_FAST_MODEL,
+          model:
+            GEMINI_FAST_MODEL,
 
-      systemInstruction:
-        `${SYSTEM}
+          systemInstruction:
+            `${SYSTEM}
 
 Sen yalnızca görev SEÇECEKSİN.
 Görev sürelerini SEN belirleme.
@@ -1629,416 +1650,423 @@ ${JSON.stringify(availableCurriculumLabels)}
 - minutes alanı üretme.
 `,
 
-      input:
-        `7 günlük program görevlerini oluştur.
+          input:
+            `7 günlük program görevlerini oluştur.
 
 Kullanıcının özel isteği:
 ${note || 'Özel isteği yok.'}`,
 
-      responseSchema:
-        schema
-    });
+          responseSchema:
+            schema
+        });
 
 
-  const plan =
-    parseStructured(raw);
-
-
-  /*
-    AI sadece öncelik belirledi.
-    Dakikaları burada biz dağıtıyoruz.
-  */
-  for (const day of plan.days || []) {
-
-    const tasks =
-      Array.isArray(day.tasks)
-        ? day.tasks
-        : [];
-
-
-    const priorityWeight = {
-      high: 1.45,
-      medium: 1,
-      low: 0.72
-    };
-
-
-    const getTaskRules = task => {
-      const label =
-        normalizeProgramLabel(
-          `${task.subject} ${task.topic}`
-        );
+      const plan =
+        parseStructured(raw);
 
 
       /*
-        Paragraf kısa ve düzenli çalışma olmalı.
+        AI sadece öncelik belirledi.
+        Dakikaları burada biz dağıtıyoruz.
       */
-      if (
-        label.includes('paragraf')
-      ) {
-        return {
-          min: 25,
-          max: 40
+      for (const day of plan.days || []) {
+
+        const tasks =
+          Array.isArray(day.tasks)
+            ? day.tasks
+            : [];
+
+
+        const priorityWeight = {
+          high: 1.45,
+          medium: 1,
+          low: 0.72
         };
-      }
 
 
-      /*
-        Matematik daha uzun odak bloklarına
-        izin verebilir ama 2-2.5 saatlik tek
-        görev yok.
-      */
-      if (
-        label.includes('matematik')
-      ) {
-        return {
-          min: 45,
-          max: 90
+        const getTaskRules = task => {
+          const label =
+            normalizeProgramLabel(
+              `${task.subject} ${task.topic}`
+            );
+
+
+          /*
+            Paragraf kısa ve düzenli çalışma olmalı.
+          */
+          if (
+            label.includes('paragraf')
+          ) {
+            return {
+              min: 25,
+              max: 40
+            };
+          }
+
+
+          /*
+            Matematik daha uzun odak bloklarına
+            izin verebilir ama 2-2.5 saatlik tek
+            görev yok.
+          */
+          if (
+            label.includes('matematik')
+          ) {
+            return {
+              min: 45,
+              max: 90
+            };
+          }
+
+
+          if (
+            label.includes('geometri') ||
+            label.includes('ucgen')
+          ) {
+            return {
+              min: 40,
+              max: 75
+            };
+          }
+
+
+          /*
+            Fen ve diğer normal konu blokları.
+          */
+          return {
+            min: 30,
+            max: 70
+          };
         };
-      }
 
 
-      if (
-        label.includes('geometri') ||
-        label.includes('ucgen')
-      ) {
-        return {
-          min: 40,
-          max: 75
-        };
-      }
+        const weighted =
+          tasks.map(task => {
+            const rules =
+              getTaskRules(task);
+
+            return {
+              task,
+
+              weight:
+                priorityWeight[
+                  task.priority
+                ] || 1,
+
+              min:
+                rules.min,
+
+              max:
+                rules.max
+            };
+          });
 
 
-      /*
-        Fen ve diğer normal konu blokları.
-      */
-      return {
-        min: 30,
-        max: 70
-      };
-    };
+        const totalWeight =
+          weighted.reduce(
+            (sum, x) =>
+              sum + x.weight,
+            0
+          ) || 1;
 
 
-    const weighted =
-      tasks.map(task => {
-        const rules =
-          getTaskRules(task);
-
-        return {
-          task,
-          weight:
-            priorityWeight[
-              task.priority
-            ] || 1,
-
-          min:
-            rules.min,
-
-          max:
-            rules.max
-        };
-      });
-
-
-    const totalWeight =
-      weighted.reduce(
-        (sum, x) =>
-          sum + x.weight,
-        0
-      ) || 1;
-
-
-    /*
-      İlk süre dağılımı.
-    */
-    weighted.forEach(x => {
-      let minutes =
-        Math.round(
-          (
-            targetMinutes *
-            x.weight /
-            totalWeight
-          ) / 5
-        ) * 5;
-
-
-      minutes =
-        Math.max(
-          x.min,
-          Math.min(
-            x.max,
-            minutes
-          )
-        );
-
-
-      x.minutes =
-        minutes;
-    });
-
-
-    /*
-      Hedef süreye yaklaşmak için kalan dakikaları
-      5'er dakika dağıt.
-    */
-    let currentTotal =
-      weighted.reduce(
-        (sum, x) =>
-          sum + x.minutes,
-        0
-      );
-
-
-    let safety = 0;
-
-
-    while (
-      currentTotal <
-        targetMinutes - 5 &&
-      safety < 500
-    ) {
-      safety++;
-
-
-      const candidates =
-        weighted
-          .filter(
-            x =>
-              x.minutes + 5 <= x.max
-          )
-          .sort(
-            (a, b) =>
+        /*
+          İlk süre dağılımı.
+        */
+        weighted.forEach(x => {
+          let minutes =
+            Math.round(
               (
-                b.weight *
-                (b.max - b.minutes)
-              ) -
-              (
-                a.weight *
-                (a.max - a.minutes)
+                targetMinutes *
+                x.weight /
+                totalWeight
+              ) / 5
+            ) * 5;
+
+
+          minutes =
+            Math.max(
+              x.min,
+              Math.min(
+                x.max,
+                minutes
               )
+            );
+
+
+          x.minutes =
+            minutes;
+        });
+
+
+        /*
+          Hedef süreye yaklaşmak için kalan dakikaları
+          5'er dakika dağıt.
+        */
+        let currentTotal =
+          weighted.reduce(
+            (sum, x) =>
+              sum + x.minutes,
+            0
           );
 
 
-      if (!candidates.length) {
-        break;
+        let safety = 0;
+
+
+        while (
+          currentTotal <
+            targetMinutes - 5 &&
+          safety < 500
+        ) {
+          safety++;
+
+
+          const candidates =
+            weighted
+              .filter(
+                x =>
+                  x.minutes + 5 <= x.max
+              )
+              .sort(
+                (a, b) =>
+                  (
+                    b.weight *
+                    (b.max - b.minutes)
+                  ) -
+                  (
+                    a.weight *
+                    (a.max - a.minutes)
+                  )
+              );
+
+
+          if (!candidates.length) {
+            break;
+          }
+
+
+          candidates[0].minutes += 5;
+          currentTotal += 5;
+        }
+
+
+        safety = 0;
+
+
+        while (
+          currentTotal >
+            targetMinutes + 5 &&
+          safety < 500
+        ) {
+          safety++;
+
+
+          const candidates =
+            weighted
+              .filter(
+                x =>
+                  x.minutes - 5 >= x.min
+              )
+              .sort(
+                (a, b) =>
+                  a.weight - b.weight
+              );
+
+
+          if (!candidates.length) {
+            break;
+          }
+
+
+          candidates[0].minutes -= 5;
+          currentTotal -= 5;
+        }
+
+
+        day.tasks =
+          weighted.map(x => ({
+            exam:
+              x.task.exam,
+
+            subject:
+              x.task.subject,
+
+            topic:
+              x.task.topic,
+
+            minutes:
+              x.minutes,
+
+            reason:
+              x.task.reason
+          }));
       }
 
 
-      candidates[0].minutes += 5;
-      currentTotal += 5;
+      const validated =
+        validateProgram(
+          plan,
+          curriculum,
+          dates,
+          ctx
+        );
+
+
+      return res
+        .status(200)
+        .json({
+          ...validated,
+
+          model:
+            GEMINI_FAST_MODEL
+        });
     }
 
 
-    safety = 0;
+    /*
+      BENİ TOPARLA
+    */
+    if (action === 'recovery') {
+      const hours =
+        int(
+          req.body?.hoursAvailable,
+          1,
+          12
+        ) || 4;
+
+      const message =
+        text(
+          req.body?.message,
+          1800
+        );
 
 
-    while (
-      currentTotal >
-        targetMinutes + 5 &&
-      safety < 500
-    ) {
-      safety++;
-
-
-      const candidates =
-        weighted
-          .filter(
-            x =>
-              x.minutes - 5 >= x.min
-          )
-          .sort(
-            (a, b) =>
-              a.weight - b.weight
-          );
-
-
-      if (!candidates.length) {
-        break;
+      if (!message) {
+        return res.status(400).json({
+          error:
+            'Durumunu kısaca anlatman gerekiyor.'
+        });
       }
 
 
-      candidates[0].minutes -= 5;
-      currentTotal -= 5;
-    }
+      /*
+        Beni Toparla'nın amacı normal bir haftalık
+        program üretmek değil.
+
+        Öğrencinin bugün yeniden düzene girmesi için
+        uygulanabilir bir kurtarma planı üretmek.
+      */
+      const targetMinutes = hours * 60;
 
 
-    day.tasks =
-      weighted.map(x => ({
-        exam:
-          x.task.exam,
-
-        subject:
-          x.task.subject,
-
-        topic:
-          x.task.topic,
-
-        minutes:
-          x.minutes,
-
-        reason:
-          x.task.reason
-      }));
-  }
+      const minTasks =
+        hours <= 3
+          ? 3
+          : hours <= 6
+            ? 4
+            : 5;
 
 
- const validated =
-  validateProgram(
-    plan,
-    curriculum,
-    dates,
-    ctx
-  );
+      const maxTasks =
+        hours <= 3
+          ? 4
+          : hours <= 6
+            ? 6
+            : 8;
 
 
-  return res
-    .status(200)
-    .json({
-      ...validated,
+      const schema = {
+        type: 'object',
 
-      model:
-        GEMINI_FAST_MODEL
-    });
-}
-/*
-  BENİ TOPARLA
-*/
-if (action === 'recovery') {
-  const hours =
-    int(
-      req.body?.hoursAvailable,
-      1,
-      12
-    ) || 4;
+        properties: {
+          title: {
+            type: 'string'
+          },
 
-  const message =
-    text(
-      req.body?.message,
-      1800
-    );
+          summary: {
+            type: 'string'
+          },
 
-  if (!message) {
-    return res.status(400).json({
-      error:
-        'Durumunu kısaca anlatman gerekiyor.'
-    });
-  }
+          tasks: {
+            type: 'array',
+            minItems: minTasks,
+            maxItems: maxTasks,
 
-  /*
-    Beni Toparla'nın amacı normal bir haftalık
-    program üretmek değil.
+            items: {
+              type: 'object',
 
-    Öğrencinin bugün yeniden düzene girmesi için
-    uygulanabilir bir kurtarma planı üretmek.
-  */
-  const targetMinutes = hours * 60;
+              properties: {
+                exam: {
+                  type: 'string',
+                  enum: [
+                    'TYT',
+                    'AYT'
+                  ]
+                },
 
-  const minTasks =
-    hours <= 3
-      ? 3
-      : hours <= 6
-        ? 4
-        : 5;
+                subject: {
+                  type: 'string'
+                },
 
-  const maxTasks =
-    hours <= 3
-      ? 4
-      : hours <= 6
-        ? 6
-        : 8;
+                topic: {
+                  type: 'string'
+                },
 
+                priority: {
+                  type: 'string',
+                  enum: [
+                    'high',
+                    'medium',
+                    'low'
+                  ]
+                },
 
-  const schema = {
-    type: 'object',
+                reason: {
+                  type: 'string'
+                }
+              },
 
-    properties: {
-      title: {
-        type: 'string'
-      },
-
-      summary: {
-        type: 'string'
-      },
-
-      tasks: {
-        type: 'array',
-        minItems: minTasks,
-        maxItems: maxTasks,
-
-        items: {
-          type: 'object',
-
-          properties: {
-            exam: {
-              type: 'string',
-              enum: [
-                'TYT',
-                'AYT'
+              required: [
+                'exam',
+                'subject',
+                'topic',
+                'priority',
+                'reason'
               ]
-            },
-
-            subject: {
-              type: 'string'
-            },
-
-            topic: {
-              type: 'string'
-            },
-
-            priority: {
-              type: 'string',
-              enum: [
-                'high',
-                'medium',
-                'low'
-              ]
-            },
-
-            reason: {
-              type: 'string'
             }
           },
 
-          required: [
-            'exam',
-            'subject',
-            'topic',
-            'priority',
-            'reason'
-          ]
-        }
-      },
+          tomorrowNote: {
+            type: 'string'
+          }
+        },
 
-      tomorrowNote: {
-        type: 'string'
-      }
-    },
-
-    required: [
-      'title',
-      'summary',
-      'tasks',
-      'tomorrowNote'
-    ]
-  };
+        required: [
+          'title',
+          'summary',
+          'tasks',
+          'tomorrowNote'
+        ]
+      };
 
 
-  const raw =
-    await geminiText({
-      userId:
-        user.id,
+      const raw =
+        await geminiText({
+          userId:
+            user.id,
 
-      action,
+          action,
 
-      /*
-        Bu özellik program mantığına benzediği
-        için önce hızlı/ucuz modeli kullanıyoruz.
-      */
-      model:
-        GEMINI_FAST_MODEL,
+          /*
+            Bu özellik program mantığına benzediği
+            için önce hızlı/ucuz modeli kullanıyoruz.
+          */
+          model:
+            GEMINI_FAST_MODEL,
 
-      systemInstruction:
-        `${SYSTEM}
+          systemInstruction:
+            `${SYSTEM}
 
 Sen "Beni Toparla" modusun.
 
@@ -2087,8 +2115,8 @@ TAKİP MÜFREDATI:
 ${JSON.stringify(availableCurriculumLabels)}
 `,
 
-      input:
-        `Öğrencinin durumu:
+          input:
+            `Öğrencinin durumu:
 ${message}
 
 Bugün ayırabileceği süre:
@@ -2097,580 +2125,650 @@ ${hours} saat
 Bugün öğrenciyi yeniden düzene sokacak
 kurtarma görevlerini oluştur.`,
 
-      responseSchema:
-        schema
-    });
+          responseSchema:
+            schema
+        });
 
 
-  const recovery =
-    parseStructured(raw);
+      const recovery =
+        parseStructured(raw);
 
 
-  /*
-    Görevleri resmi müfredat adlarıyla
-    doğrula ve canonical hale getir.
-  */
-  const cleanedTasks = [];
-
-  for (
-    const rawTask of
-    Array.isArray(recovery.tasks)
-      ? recovery.tasks
-      : []
-  ) {
-    const exam =
-      text(
-        rawTask?.exam,
-        3
-      ).toUpperCase();
-
-    const subject =
-      text(
-        rawTask?.subject,
-        100
-      );
-
-    const topic =
-      text(
-        rawTask?.topic,
-        180
-      );
-
-    if (
-      !['TYT', 'AYT'].includes(exam)
-    ) {
-      throw Object.assign(
-        new Error(
-          'Beni Toparla planındaki sınav türü doğrulanamadı.'
-        ),
-        { status: 502 }
-      );
-    }
+      /*
+        Görevleri resmi müfredat adlarıyla
+        doğrula ve canonical hale getir.
+      */
+      const cleanedTasks = [];
 
 
-    const canonicalSubject =
-      findCanonicalSubject(
-        curriculum,
-        exam,
-        subject
-      );
+      for (
+        const rawTask of
+        Array.isArray(recovery.tasks)
+          ? recovery.tasks
+          : []
+      ) {
+        const exam =
+          text(
+            rawTask?.exam,
+            3
+          ).toUpperCase();
+
+        const subject =
+          text(
+            rawTask?.subject,
+            100
+          );
+
+        const topic =
+          text(
+            rawTask?.topic,
+            180
+          );
 
 
-    if (!canonicalSubject) {
-      console.warn(
-        '[AI RECOVERY] Subject mismatch:',
-        {
-          exam,
-          received: subject
+        if (
+          !['TYT', 'AYT'].includes(exam)
+        ) {
+          throw Object.assign(
+            new Error(
+              'Beni Toparla planındaki sınav türü doğrulanamadı.'
+            ),
+            { status: 502 }
+          );
         }
-      );
-
-      throw Object.assign(
-        new Error(
-          'Beni Toparla planındaki bir ders takip müfredatıyla eşleşmedi. Yeniden dene.'
-        ),
-        { status: 502 }
-      );
-    }
 
 
-    const allowedTopics =
-      curriculum[exam]?.[
-        canonicalSubject
-      ] || [];
+        const canonicalSubject =
+          findCanonicalSubject(
+            curriculum,
+            exam,
+            subject
+          );
 
 
-    const canonicalTopic =
-      findCanonicalTopic(
-        allowedTopics,
-        topic
-      );
+        if (!canonicalSubject) {
+          console.warn(
+            '[AI RECOVERY] Subject mismatch:',
+            {
+              exam,
+              received: subject
+            }
+          );
+
+          throw Object.assign(
+            new Error(
+              'Beni Toparla planındaki bir ders takip müfredatıyla eşleşmedi. Yeniden dene.'
+            ),
+            { status: 502 }
+          );
+        }
 
 
-    if (!canonicalTopic) {
-      console.warn(
-        '[AI RECOVERY] Topic mismatch:',
-        {
+        const allowedTopics =
+          curriculum[exam]?.[
+            canonicalSubject
+          ] || [];
+
+
+        const canonicalTopic =
+          findCanonicalTopic(
+            allowedTopics,
+            topic
+          );
+
+
+        if (!canonicalTopic) {
+          console.warn(
+            '[AI RECOVERY] Topic mismatch:',
+            {
+              exam,
+              subject:
+                canonicalSubject,
+              received: topic
+            }
+          );
+
+          throw Object.assign(
+            new Error(
+              'Beni Toparla planındaki bir konu takip müfredatıyla eşleşmedi. Yeniden dene.'
+            ),
+            { status: 502 }
+          );
+        }
+
+
+        /*
+          Tamamlanmış ve tekrar gerektirmeyen
+          konuyu Beni Toparla da kabul etmez.
+        */
+        if (
+          isCompletedWithoutReview(
+            ctx,
+            exam,
+            canonicalSubject,
+            canonicalTopic
+          )
+        ) {
+          console.warn(
+            '[AI RECOVERY] Completed topic rejected:',
+            {
+              exam,
+              subject: canonicalSubject,
+              topic: canonicalTopic.name
+            }
+          );
+
+          throw Object.assign(
+            new Error(
+              `Beni Toparla tamamlanmış "${canonicalTopic.name}" konusunu yeniden seçti. Lütfen yeniden dene.`
+            ),
+            { status: 502 }
+          );
+        }
+
+
+        cleanedTasks.push({
           exam,
+
           subject:
             canonicalSubject,
-          received: topic
-        }
-      );
 
-      throw Object.assign(
-        new Error(
-          'Beni Toparla planındaki bir konu takip müfredatıyla eşleşmedi. Yeniden dene.'
-        ),
-        { status: 502 }
-      );
-    }
-    /*
-      Tamamlanmış ve tekrar gerektirmeyen
-      konuyu Beni Toparla da kabul etmez.
-    */
-    if (
-      isCompletedWithoutReview(
-        ctx,
-        exam,
-        canonicalSubject,
-        canonicalTopic
-      )
-    ) {
-      console.warn(
-        '[AI RECOVERY] Completed topic rejected:',
-        {
-          exam,
-          subject: canonicalSubject,
-          topic: canonicalTopic.name
-        }
-      );
+          topic:
+            canonicalTopic.name,
 
-      throw Object.assign(
-        new Error(
-          `Beni Toparla tamamlanmış "${canonicalTopic.name}" konusunu yeniden seçti. Lütfen yeniden dene.`
-        ),
-        { status: 502 }
-      );
-    }
+          priority:
+            ['high', 'medium', 'low']
+              .includes(rawTask?.priority)
+                ? rawTask.priority
+                : 'medium',
 
-    cleanedTasks.push({
-      exam,
-
-      subject:
-        canonicalSubject,
-
-      topic:
-        canonicalTopic.name,
-
-      priority:
-        ['high', 'medium', 'low']
-          .includes(rawTask?.priority)
-            ? rawTask.priority
-            : 'medium',
-
-      reason:
-        text(
-          rawTask?.reason,
-          500
-        )
-    });
-  }
-
-
-  if (
-    cleanedTasks.length < minTasks ||
-    cleanedTasks.length > maxTasks
-  ) {
-    throw Object.assign(
-      new Error(
-        'Beni Toparla planındaki görev sayısı doğrulanamadı. Yeniden dene.'
-      ),
-      { status: 502 }
-    );
-  }
-
-
-  /*
-    Süreleri AI'a bırakmıyoruz.
-    AI yalnızca görev ve öncelik seçiyor.
-  */
-  const priorityWeight = {
-    high: 1.45,
-    medium: 1,
-    low: 0.72
-  };
-
-
-  const getRecoveryRules = task => {
-    const label =
-      normalizeProgramLabel(
-        `${task.subject} ${task.topic}`
-      );
-
-
-    if (
-      label.includes('paragraf')
-    ) {
-      return {
-        min: 25,
-        max: 40
-      };
-    }
-
-
-    if (
-      label.includes('matematik')
-    ) {
-      return {
-        min: 45,
-        max: 90
-      };
-    }
-
-
-    if (
-      label.includes('geometri') ||
-      label.includes('ucgen')
-    ) {
-      return {
-        min: 40,
-        max: 75
-      };
-    }
-
-
-    return {
-      min: 30,
-      max: 70
-    };
-  };
-
-
-  const weighted =
-    cleanedTasks.map(task => {
-      const rules =
-        getRecoveryRules(task);
-
-      return {
-        task,
-
-        weight:
-          priorityWeight[
-            task.priority
-          ] || 1,
-
-        min:
-          rules.min,
-
-        max:
-          rules.max
-      };
-    });
-
-
-  const totalWeight =
-    weighted.reduce(
-      (sum, x) =>
-        sum + x.weight,
-      0
-    ) || 1;
-
-
-  weighted.forEach(x => {
-    let minutes =
-      Math.round(
-        (
-          targetMinutes *
-          x.weight /
-          totalWeight
-        ) / 5
-      ) * 5;
-
-
-    minutes =
-      Math.max(
-        x.min,
-        Math.min(
-          x.max,
-          minutes
-        )
-      );
-
-
-    x.minutes =
-      minutes;
-  });
-
-
-  /*
-    Hedef süreye mümkün olduğunca yaklaş.
-  */
-  let currentTotal =
-    weighted.reduce(
-      (sum, x) =>
-        sum + x.minutes,
-      0
-    );
-
-
-  let safety = 0;
-
-
-  while (
-    currentTotal <
-      targetMinutes - 5 &&
-    safety < 500
-  ) {
-    safety++;
-
-
-    const candidates =
-      weighted
-        .filter(
-          x =>
-            x.minutes + 5 <= x.max
-        )
-        .sort(
-          (a, b) =>
-            (
-              b.weight *
-              (b.max - b.minutes)
-            ) -
-            (
-              a.weight *
-              (a.max - a.minutes)
+          reason:
+            text(
+              rawTask?.reason,
+              500
             )
+        });
+      }
+
+
+      if (
+        cleanedTasks.length < minTasks ||
+        cleanedTasks.length > maxTasks
+      ) {
+        throw Object.assign(
+          new Error(
+            'Beni Toparla planındaki görev sayısı doğrulanamadı. Yeniden dene.'
+          ),
+          { status: 502 }
         );
+      }
 
 
-    if (!candidates.length) {
-      break;
-    }
-
-
-    candidates[0].minutes += 5;
-    currentTotal += 5;
-  }
-
-
-  safety = 0;
-
-
-  while (
-    currentTotal >
-      targetMinutes + 5 &&
-    safety < 500
-  ) {
-    safety++;
-
-
-    const candidates =
-      weighted
-        .filter(
-          x =>
-            x.minutes - 5 >= x.min
-        )
-        .sort(
-          (a, b) =>
-            a.weight - b.weight
-        );
-
-
-    if (!candidates.length) {
-      break;
-    }
-
-
-    candidates[0].minutes -= 5;
-    currentTotal -= 5;
-  }
-
-
-  const tasks =
-    weighted.map(x => ({
-      exam:
-        x.task.exam,
-
-      subject:
-        x.task.subject,
-
-      topic:
-        x.task.topic,
-
-      minutes:
-        x.minutes,
-
-      reason:
-        x.task.reason
-    }));
-
-
-  return res
-    .status(200)
-    .json({
-      title:
-        text(
-          recovery.title,
-          160
-        ) ||
-        'Bugünün Toparlanma Planı',
-
-      summary:
-        text(
-          recovery.summary,
-          1600
-        ),
-
-      hoursAvailable:
-        hours,
-
-      totalMinutes:
-        tasks.reduce(
-          (sum, task) =>
-            sum + task.minutes,
-          0
-        ),
-
-      tasks,
-
-      tomorrowNote:
-        text(
-          recovery.tomorrowNote,
-          800
-        ),
-
-      model:
-        GEMINI_FAST_MODEL
-    });
-}
-    /*
-  DENEME ANALİZİ
-*/
-if (action === 'exam_analysis') {
-  const examId = int(
-    req.body?.examId,
-    1,
-    999999999999
-  );
-
-  if (!examId) {
-    return res.status(400).json({
-      error: 'Geçerli bir deneme seç.'
-    });
-  }
-
-  const selectedResult = await query(
-    `
-      SELECT
-        id,
-        exam_type,
-        exam_name,
-        exam_date::text,
-        details,
-        total_net
-      FROM yks2_exam_results
-      WHERE id = $1
-        AND user_id = $2
-      LIMIT 1
-    `,
-    [examId, user.id]
-  );
-
-  const selectedExam =
-    selectedResult.rows[0];
-
-  if (!selectedExam) {
-    return res.status(404).json({
-      error: 'Deneme bulunamadı.'
-    });
-  }
-
-  const previousResult = await query(
-    `
-      SELECT
-        id,
-        exam_type,
-        exam_name,
-        exam_date::text,
-        details,
-        total_net
-      FROM yks2_exam_results
-      WHERE user_id = $1
-        AND exam_type = $2
-        AND (
-          exam_date < $3::date
-          OR (
-            exam_date = $3::date
-            AND id < $4
-          )
-        )
-      ORDER BY exam_date DESC, id DESC
-      LIMIT 1
-    `,
-    [
-      user.id,
-      selectedExam.exam_type,
-      selectedExam.exam_date,
-      selectedExam.id
-    ]
-  );
-
-  const previousExam =
-    previousResult.rows[0] || null;
-const withCalculatedNets = exam => {
-  if (!exam) return null;
-
-  const details = exam.details || {};
-  const cleanDetails = {};
-
-  for (const [subject, value] of Object.entries(details)) {
-    if (!value || typeof value !== 'object') continue;
-
-    const correct = Number(value.correct || 0);
-    const wrong = Number(value.wrong || 0);
-    const blank = Number(value.blank || 0);
-
-    const total = correct + wrong + blank;
-
-    if (total <= 0) {
-      cleanDetails[subject] = {
-        status: 'no_data'
+      /*
+        Süreleri AI'a bırakmıyoruz.
+        AI yalnızca görev ve öncelik seçiyor.
+      */
+      const priorityWeight = {
+        high: 1.45,
+        medium: 1,
+        low: 0.72
       };
-      continue;
+
+
+      const getRecoveryRules = task => {
+        const label =
+          normalizeProgramLabel(
+            `${task.subject} ${task.topic}`
+          );
+
+
+        if (
+          label.includes('paragraf')
+        ) {
+          return {
+            min: 25,
+            max: 40
+          };
+        }
+
+
+        if (
+          label.includes('matematik')
+        ) {
+          return {
+            min: 45,
+            max: 90
+          };
+        }
+
+
+        if (
+          label.includes('geometri') ||
+          label.includes('ucgen')
+        ) {
+          return {
+            min: 40,
+            max: 75
+          };
+        }
+
+
+        return {
+          min: 30,
+          max: 70
+        };
+      };
+
+
+      const weighted =
+        cleanedTasks.map(task => {
+          const rules =
+            getRecoveryRules(task);
+
+          return {
+            task,
+
+            weight:
+              priorityWeight[
+                task.priority
+              ] || 1,
+
+            min:
+              rules.min,
+
+            max:
+              rules.max
+          };
+        });
+
+
+      const totalWeight =
+        weighted.reduce(
+          (sum, x) =>
+            sum + x.weight,
+          0
+        ) || 1;
+
+
+      weighted.forEach(x => {
+        let minutes =
+          Math.round(
+            (
+              targetMinutes *
+              x.weight /
+              totalWeight
+            ) / 5
+          ) * 5;
+
+
+        minutes =
+          Math.max(
+            x.min,
+            Math.min(
+              x.max,
+              minutes
+            )
+          );
+
+
+        x.minutes =
+          minutes;
+      });
+
+
+      /*
+        Hedef süreye mümkün olduğunca yaklaş.
+      */
+      let currentTotal =
+        weighted.reduce(
+          (sum, x) =>
+            sum + x.minutes,
+          0
+        );
+
+
+      let safety = 0;
+
+
+      while (
+        currentTotal <
+          targetMinutes - 5 &&
+        safety < 500
+      ) {
+        safety++;
+
+
+        const candidates =
+          weighted
+            .filter(
+              x =>
+                x.minutes + 5 <= x.max
+            )
+            .sort(
+              (a, b) =>
+                (
+                  b.weight *
+                  (b.max - b.minutes)
+                ) -
+                (
+                  a.weight *
+                  (a.max - a.minutes)
+                )
+            );
+
+
+        if (!candidates.length) {
+          break;
+        }
+
+
+        candidates[0].minutes += 5;
+        currentTotal += 5;
+      }
+
+
+      safety = 0;
+
+
+      while (
+        currentTotal >
+          targetMinutes + 5 &&
+        safety < 500
+      ) {
+        safety++;
+
+
+        const candidates =
+          weighted
+            .filter(
+              x =>
+                x.minutes - 5 >= x.min
+            )
+            .sort(
+              (a, b) =>
+                a.weight - b.weight
+            );
+
+
+        if (!candidates.length) {
+          break;
+        }
+
+
+        candidates[0].minutes -= 5;
+        currentTotal -= 5;
+      }
+
+
+      const tasks =
+        weighted.map(x => ({
+          exam:
+            x.task.exam,
+
+          subject:
+            x.task.subject,
+
+          topic:
+            x.task.topic,
+
+          minutes:
+            x.minutes,
+
+          reason:
+            x.task.reason
+        }));
+
+
+      return res
+        .status(200)
+        .json({
+          title:
+            text(
+              recovery.title,
+              160
+            ) ||
+            'Bugünün Toparlanma Planı',
+
+          summary:
+            text(
+              recovery.summary,
+              1600
+            ),
+
+          hoursAvailable:
+            hours,
+
+          totalMinutes:
+            tasks.reduce(
+              (sum, task) =>
+                sum + task.minutes,
+              0
+            ),
+
+          tasks,
+
+          tomorrowNote:
+            text(
+              recovery.tomorrowNote,
+              800
+            ),
+
+          model:
+            GEMINI_FAST_MODEL
+        });
     }
 
-    cleanDetails[subject] = {
-      correct,
-      wrong,
-      blank,
-      net: Number(
-        (correct - wrong / 4).toFixed(2)
-      ),
-      status: 'has_data'
-    };
-  }
 
-  return {
-    ...exam,
-    details: cleanDetails
-  };
-};
+    /*
+      DENEME ANALİZİ
+    */
+    if (action === 'exam_analysis') {
+      const examId = int(
+        req.body?.examId,
+        1,
+        999999999999
+      );
 
-const selectedExamForAI =
-  withCalculatedNets(selectedExam);
 
-const previousExamForAI =
-  withCalculatedNets(previousExam);
-  const recentResult = await query(
-    `
-      SELECT
-        exam_name,
-        exam_date::text,
-        total_net,
-        details
-      FROM yks2_exam_results
-      WHERE user_id = $1
-        AND exam_type = $2
-        AND id <> $3
-      ORDER BY exam_date DESC, id DESC
-      LIMIT 7
-    `,
-    [
-      user.id,
-      selectedExam.exam_type,
-      selectedExam.id
-    ]
-  );
+      if (!examId) {
+        return res.status(400).json({
+          error:
+            'Geçerli bir deneme seç.'
+        });
+      }
 
-  const answer =
-    await geminiText({
-      userId: user.id,
-      action,
-      model: GEMINI_MODEL,
 
-      systemInstruction:
-        `${SYSTEM}
+      const selectedResult = await query(
+        `
+        SELECT
+          id,
+          exam_type,
+          exam_name,
+          exam_date::text,
+          details,
+          total_net
+        FROM yks2_exam_results
+        WHERE id = $1
+          AND user_id = $2
+        LIMIT 1
+        `,
+        [examId, user.id]
+      );
+
+
+      const selectedExam =
+        selectedResult.rows[0];
+
+
+      if (!selectedExam) {
+        return res.status(404).json({
+          error:
+            'Deneme bulunamadı.'
+        });
+      }
+
+
+      const previousResult = await query(
+        `
+        SELECT
+          id,
+          exam_type,
+          exam_name,
+          exam_date::text,
+          details,
+          total_net
+        FROM yks2_exam_results
+        WHERE user_id = $1
+          AND exam_type = $2
+          AND (
+            exam_date < $3::date
+            OR (
+              exam_date = $3::date
+              AND id < $4
+            )
+          )
+        ORDER BY exam_date DESC, id DESC
+        LIMIT 1
+        `,
+        [
+          user.id,
+          selectedExam.exam_type,
+          selectedExam.exam_date,
+          selectedExam.id
+        ]
+      );
+
+
+      const previousExam =
+        previousResult.rows[0] ||
+        null;
+
+
+      const withCalculatedNets = exam => {
+        if (!exam) return null;
+
+        const details =
+          exam.details || {};
+
+        const cleanDetails = {};
+
+
+        for (
+          const [subject, value]
+          of Object.entries(details)
+        ) {
+          if (
+            !value ||
+            typeof value !== 'object'
+          ) {
+            continue;
+          }
+
+          const correct =
+            Number(
+              value.correct || 0
+            );
+
+          const wrong =
+            Number(
+              value.wrong || 0
+            );
+
+          const blank =
+            Number(
+              value.blank || 0
+            );
+
+          const total =
+            correct +
+            wrong +
+            blank;
+
+
+          if (total <= 0) {
+            cleanDetails[subject] = {
+              status:
+                'no_data'
+            };
+
+            continue;
+          }
+
+
+          cleanDetails[subject] = {
+            correct,
+            wrong,
+            blank,
+
+            net:
+              Number(
+                (
+                  correct -
+                  wrong / 4
+                ).toFixed(2)
+              ),
+
+            status:
+              'has_data'
+          };
+        }
+
+
+        return {
+          ...exam,
+          details:
+            cleanDetails
+        };
+      };
+
+
+      const selectedExamForAI =
+        withCalculatedNets(
+          selectedExam
+        );
+
+
+      const previousExamForAI =
+        withCalculatedNets(
+          previousExam
+        );
+
+
+      const recentResult =
+        await query(
+          `
+          SELECT
+            exam_name,
+            exam_date::text,
+            total_net,
+            details
+          FROM yks2_exam_results
+          WHERE user_id = $1
+            AND exam_type = $2
+            AND id <> $3
+          ORDER BY exam_date DESC, id DESC
+          LIMIT 7
+          `,
+          [
+            user.id,
+            selectedExam.exam_type,
+            selectedExam.id
+          ]
+        );
+
+
+      const answer =
+        await geminiText({
+          userId:
+            user.id,
+
+          action,
+
+          model:
+            GEMINI_MODEL,
+
+          systemInstruction:
+            `${SYSTEM}
 
 Bu özellik öğrencinin seçtiği YKS denemesini analiz eder.
 
@@ -2706,8 +2804,8 @@ En Önemli 3 Öncelik
 Bir Sonraki Denemeye Kadar
 `,
 
-     input:
-  `SEÇİLEN DENEME:
+          input:
+            `SEÇİLEN DENEME:
 ${JSON.stringify(selectedExamForAI)}
 
 ÖNCEKİ AYNI TÜR DENEME:
@@ -2718,14 +2816,19 @@ ${JSON.stringify(recentResult.rows)}
 
 ÖĞRENCİNİN GENEL PERFORMANS VERİLERİ:
 ${JSON.stringify(ctx)}`
-});
-  return res
-    .status(200)
-    .json({
-      answer,
-      model: GEMINI_MODEL
-    });
-}
+        });
+
+
+      return res
+        .status(200)
+        .json({
+          answer,
+          model:
+            GEMINI_MODEL
+        });
+    }
+
+
     /*
       YANLIŞ ANALİZİ
     */
@@ -2738,36 +2841,36 @@ ${JSON.stringify(ctx)}`
       ] = await Promise.all([
         query(
           `
-            SELECT
-              exam,
-              subject,
-              topic,
-              SUM(correct_count)::int AS correct,
-              SUM(wrong_count)::int AS wrong,
-              SUM(blank_count)::int AS blank
-            FROM yks2_question_logs
-            WHERE user_id = $1
-            GROUP BY exam, subject, topic
-            ORDER BY SUM(wrong_count) DESC
-            LIMIT 80
+          SELECT
+            exam,
+            subject,
+            topic,
+            SUM(correct_count)::int AS correct,
+            SUM(wrong_count)::int AS wrong,
+            SUM(blank_count)::int AS blank
+          FROM yks2_question_logs
+          WHERE user_id = $1
+          GROUP BY exam, subject, topic
+          ORDER BY SUM(wrong_count) DESC
+          LIMIT 80
           `,
           [user.id]
         ),
 
         query(
           `
-            SELECT
-              exam,
-              subject,
-              topic,
-              source_name,
-              note,
-              resolved,
-              created_at
-            FROM yks2_mistake_archive
-            WHERE user_id = $1
-            ORDER BY created_at DESC
-            LIMIT 80
+          SELECT
+            exam,
+            subject,
+            topic,
+            source_name,
+            note,
+            resolved,
+            created_at
+          FROM yks2_mistake_archive
+          WHERE user_id = $1
+          ORDER BY created_at DESC
+          LIMIT 80
           `,
           [user.id]
         )
@@ -2824,362 +2927,52 @@ ${JSON.stringify(ctx)}`
     /*
       FOTOĞRAFTAN SORU ÇÖZME
     */
-  if (
-  action === 'solve_image'
-) {
-  const imageData =
-    String(
-      req.body?.imageData ||
-      ''
-    );
+    if (
+      action === 'solve_image'
+    ) {
+      const imageData =
+        String(
+          req.body?.imageData ||
+          ''
+        );
 
-  const prompt =
-    text(
-      req.body?.prompt,
-      1200
-    ) ||
-    `Bu YKS sorusunu çöz.
+
+      const prompt =
+        text(
+          req.body?.prompt,
+          1200
+        ) ||
+        `Bu YKS sorusunu çöz.
 
 Öğrencinin anlamadığı noktayı öğretir gibi açıkla.
 Final cevabı en sonda belirt.`;
 
-  const m =
-    imageData.match(
-      /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/
-    );
 
-  if (!m) {
-    return res.status(400).json({
-      error:
-        'Geçerli JPEG, PNG veya WEBP soru fotoğrafı gerekli.'
-    });
-  }
+      const m =
+        imageData.match(
+          /^data:(image\/(?:jpeg|png|webp));base64,(.+)$/
+        );
 
-  const mimeType =
-    m[1];
 
-  const base64Data =
-    m[2];
-
-  if (
-    base64Data.length >
-    8_000_000
-  ) {
-    return res.status(413).json({
-      error:
-        'Görsel çok büyük. Daha küçük bir fotoğraf yükle.'
-    });
-  }
-
-  if (
-    base64Data.length % 4 !== 0
-  ) {
-    return res.status(400).json({
-      error:
-        'Görsel verisi geçersiz.'
-    });
-  }
-
-  let imageBuffer;
-
-  try {
-    imageBuffer =
-      Buffer.from(
-        base64Data,
-        'base64'
-      );
-  } catch {
-    return res.status(400).json({
-      error:
-        'Görsel verisi okunamadı.'
-    });
-  }
-
-  if (
-    imageBuffer.length < 16
-  ) {
-    return res.status(400).json({
-      error:
-        'Görsel verisi geçersiz.'
-    });
-  }
-
-  if (
-    imageBuffer.length >
-    6_000_000
-  ) {
-    return res.status(413).json({
-      error:
-        'Görsel çok büyük. En fazla 6 MB görsel yükleyebilirsin.'
-    });
-  }
-
-  const isJpeg =
-    imageBuffer.length >= 3 &&
-    imageBuffer[0] === 0xff &&
-    imageBuffer[1] === 0xd8 &&
-    imageBuffer[2] === 0xff;
-
-  const isPng =
-    imageBuffer.length >= 8 &&
-    imageBuffer[0] === 0x89 &&
-    imageBuffer[1] === 0x50 &&
-    imageBuffer[2] === 0x4e &&
-    imageBuffer[3] === 0x47 &&
-    imageBuffer[4] === 0x0d &&
-    imageBuffer[5] === 0x0a &&
-    imageBuffer[6] === 0x1a &&
-    imageBuffer[7] === 0x0a;
-
-  const isWebp =
-    imageBuffer.length >= 12 &&
-    imageBuffer.toString(
-      'ascii',
-      0,
-      4
-    ) === 'RIFF' &&
-    imageBuffer.toString(
-      'ascii',
-      8,
-      12
-    ) === 'WEBP';
-
-  const mimeMatches =
-    (
-      mimeType === 'image/jpeg' &&
-      isJpeg
-    ) ||
-    (
-      mimeType === 'image/png' &&
-      isPng
-    ) ||
-    (
-      mimeType === 'image/webp' &&
-      isWebp
-    );
-
-  if (!mimeMatches) {
-    return res.status(400).json({
-      error:
-        'Dosya içeriği JPEG, PNG veya WEBP formatıyla eşleşmiyor.'
-    });
-  }
-
-  const safeBase64 =
-    imageBuffer.toString(
-      'base64'
-    );
-
-  const answer =
-    await geminiText({
-      userId:
-        user.id,
-
-      action,
-
-      model:
-        GEMINI_MODEL,
-
-      systemInstruction:
-        `${SYSTEM}
-
-SENİN GÖREVİN:
-Fotoğraftaki YKS sorusunu öğrencinin gerçekten anlayacağı biçimde açıklamak.
-
-KURALLAR:
-- Önce görseldeki soruyu doğru anladığından emin ol.
-- Görsel yeterince okunmuyorsa ASLA tahmin etme; daha net fotoğraf iste.
-- Soruyu baştan sona gereksiz yere tekrar yazma.
-- Öğrencinin özellikle sorduğu noktaya öncelik ver.
-- Çözümü mantıksal adımlara ayır.
-- Formül kullanıyorsan formülün neden kullanıldığını açıkla.
-- Matematik ifadelerini sade metin ve Unicode karakterlerle yaz.
-- LaTeX KULLANMA.
-- $ ve $$ KULLANMA.
-- \\frac, \\div, \\times, \\boxed gibi komutlar KULLANMA.
-- **kalın** gibi Markdown işaretleri KULLANMA.
-- Gereksiz övgü veya giriş yapma.
-- Final cevabı en sonda "Cevap: ..." biçiminde belirt.
-`,
-
-      input:
-        prompt,
-
-      image: {
-        data:
-          safeBase64,
-
-        mimeType
+      if (!m) {
+        return res.status(400).json({
+          error:
+            'Geçerli JPEG, PNG veya WEBP soru fotoğrafı gerekli.'
+        });
       }
-    });
-
-  return res
-    .status(200)
-    .json({
-      answer,
-      model:
-        GEMINI_MODEL
-    });
-}
 
 
-if (!m) {
-  return res.status(400).json({
-    error:
-      'Geçerli JPEG, PNG veya WEBP soru fotoğrafı gerekli.'
-  });
-}
+      if (
+        m[2].length >
+        12_000_000
+      ) {
+        return res.status(413).json({
+          error:
+            'Görsel çok büyük.'
+        });
+      }
 
 
-const mimeType =
-  m[1];
-
-const base64Data =
-  m[2];
-
-
-/*
-  Base64 metnini decode etmeden önce de sınırla.
-
-  Yaklaşık 6 MB gerçek dosya için base64
-  yaklaşık 8 MB civarında olur.
-*/
-if (
-  base64Data.length >
-  8_000_000
-) {
-  return res.status(413).json({
-    error:
-      'Görsel çok büyük. Daha küçük bir fotoğraf yükle.'
-  });
-}
-
-
-/*
-  Standart base64 uzunluğu 4'ün katı olmalı.
-*/
-if (
-  base64Data.length % 4 !== 0
-) {
-  return res.status(400).json({
-    error:
-      'Görsel verisi geçersiz.'
-  });
-}
-
-
-let imageBuffer;
-
-try {
-  imageBuffer =
-    Buffer.from(
-      base64Data,
-      'base64'
-    );
-} catch {
-  return res.status(400).json({
-    error:
-      'Görsel verisi okunamadı.'
-  });
-}
-
-
-/*
-  Boş / anlamsız veri ve gerçek byte boyutu kontrolü.
-*/
-if (
-  imageBuffer.length < 16
-) {
-  return res.status(400).json({
-    error:
-      'Görsel verisi geçersiz.'
-  });
-}
-
-
-if (
-  imageBuffer.length >
-  6_000_000
-) {
-  return res.status(413).json({
-    error:
-      'Görsel çok büyük. En fazla 6 MB görsel yükleyebilirsin.'
-  });
-}
-
-
-/*
-  Kullanıcının MIME etiketiyle gerçek dosya başlığının
-  uyuşup uyuşmadığını kontrol et.
-
-  Sadece uzantıya veya data URL içindeki MIME adına
-  güvenmiyoruz.
-*/
-const isJpeg =
-  imageBuffer.length >= 3 &&
-  imageBuffer[0] === 0xff &&
-  imageBuffer[1] === 0xd8 &&
-  imageBuffer[2] === 0xff;
-
-
-const isPng =
-  imageBuffer.length >= 8 &&
-  imageBuffer[0] === 0x89 &&
-  imageBuffer[1] === 0x50 &&
-  imageBuffer[2] === 0x4e &&
-  imageBuffer[3] === 0x47 &&
-  imageBuffer[4] === 0x0d &&
-  imageBuffer[5] === 0x0a &&
-  imageBuffer[6] === 0x1a &&
-  imageBuffer[7] === 0x0a;
-
-
-const isWebp =
-  imageBuffer.length >= 12 &&
-  imageBuffer.toString(
-    'ascii',
-    0,
-    4
-  ) === 'RIFF' &&
-  imageBuffer.toString(
-    'ascii',
-    8,
-    12
-  ) === 'WEBP';
-
-
-const mimeMatches =
-  (
-    mimeType === 'image/jpeg' &&
-    isJpeg
-  ) ||
-  (
-    mimeType === 'image/png' &&
-    isPng
-  ) ||
-  (
-    mimeType === 'image/webp' &&
-    isWebp
-  );
-
-
-if (!mimeMatches) {
-  return res.status(400).json({
-    error:
-      'Dosya içeriği JPEG, PNG veya WEBP formatıyla eşleşmiyor.'
-  });
-}
-
-
-/*
-  Decode edilen veriyi yeniden standardize ediyoruz.
-  Gemini'ye kullanıcının ham base64 metnini değil,
-  doğruladığımız byte verisini gönderiyoruz.
-*/
-const safeBase64 =
-  imageBuffer.toString(
-    'base64'
-  );
       const answer =
         await geminiText({
           userId:
@@ -3215,12 +3008,12 @@ KURALLAR:
           input:
             prompt,
 
-image: {
-  data:
-    safeBase64,
+          image: {
+            data:
+              m[2],
 
-  mimeType
-}
+            mimeType:
+              m[1]
           }
         });
 
@@ -3241,6 +3034,7 @@ image: {
         error:
           'Geçersiz AI işlemi.'
       });
+
 
   } catch (err) {
     return aiErrorResponse(
