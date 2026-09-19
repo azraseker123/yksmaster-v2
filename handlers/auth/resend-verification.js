@@ -1,12 +1,61 @@
 import crypto from 'crypto';
+
 import { query } from '../../lib/db.js';
 import { sendEmail } from '../../lib/email.js';
-import { onlyMethods, normalizeEmail } from '../../lib/http.js';
 
-export default async function handler(req, res) {
-  if (!onlyMethods(req, res, ['POST'])) return;
+import {
+  onlyMethods,
+  normalizeEmail,
+  noStore
+} from '../../lib/http.js';
 
-  const email = normalizeEmail(req.body?.email);
+
+function getAppUrl() {
+  const raw =
+    String(
+      process.env.APP_URL ||
+      'https://yksmaster-v.vercel.app'
+    ).trim();
+
+  try {
+    const url = new URL(raw);
+
+    if (
+      url.protocol !== 'https:' &&
+      url.protocol !== 'http:'
+    ) {
+      return null;
+    }
+
+    return url.origin;
+
+  } catch {
+    return null;
+  }
+}
+
+
+export default async function handler(
+  req,
+  res
+) {
+  if (
+    !onlyMethods(
+      req,
+      res,
+      ['POST']
+    )
+  ) {
+    return;
+  }
+
+  noStore(res);
+
+  const email =
+    normalizeEmail(
+      req.body?.email
+    );
+
 
   const genericResponse = {
     ok: true,
@@ -14,69 +63,142 @@ export default async function handler(req, res) {
       'Eğer bu e-posta adresiyle doğrulanmamış bir hesap varsa yeni doğrulama bağlantısı gönderildi.'
   };
 
-  if (!email) {
-    return res.status(200).json(genericResponse);
+
+  /*
+    Boş/geçersiz e-postada da hesap durumunu
+    dışarı vermiyoruz.
+  */
+  if (
+    !email ||
+    !/^\S+@\S+\.\S+$/.test(
+      email
+    )
+  ) {
+    return res
+      .status(200)
+      .json(
+        genericResponse
+      );
   }
 
+
   try {
-    const result = await query(
-      `SELECT
-         id,
-         email,
-       email_verified_at,
-email_verify_expires_at,
-email_verify_last_sent_at
-       FROM yks2_users
-       WHERE email = $1
-       LIMIT 1`,
-      [email]
-    );
+    const result =
+      await query(
+        `SELECT
+          id,
+          email,
+          email_verified_at,
+          email_verify_last_sent_at
+         FROM yks2_users
+         WHERE email = $1
+         LIMIT 1`,
+        [
+          email
+        ]
+      );
 
-    const user = result.rows[0];
+    const user =
+      result.rows[0];
 
-    if (!user || user.email_verified_at) {
-      return res.status(200).json(genericResponse);
+
+    /*
+      Hesap yoksa veya zaten doğrulanmışsa
+      yine aynı genel cevabı dön.
+    */
+    if (
+      !user ||
+      user.email_verified_at
+    ) {
+      return res
+        .status(200)
+        .json(
+          genericResponse
+        );
     }
-if (
-  user.email_verify_last_sent_at &&
-  Date.now() -
-    new Date(user.email_verify_last_sent_at).getTime()
-    < 2 * 60 * 1000
-) {
-  return res.status(200).json(genericResponse);
-}
-    const rawVerifyToken =
-      crypto.randomBytes(32).toString('hex');
 
-    const verifyTokenHash = crypto
-      .createHash('sha256')
-      .update(rawVerifyToken)
-      .digest('hex');
+
+    /*
+      2 dakika içinde tekrar mail gönderme.
+    */
+    if (
+      user.email_verify_last_sent_at &&
+      Date.now() -
+        new Date(
+          user.email_verify_last_sent_at
+        ).getTime() <
+        2 * 60 * 1000
+    ) {
+      return res
+        .status(200)
+        .json(
+          genericResponse
+        );
+    }
+
+
+    const appUrl =
+      getAppUrl();
+
+    if (!appUrl) {
+      console.error(
+        'Invalid APP_URL configuration.'
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Doğrulama e-postası şu anda gönderilemedi.'
+        });
+    }
+
+
+    const rawVerifyToken =
+      crypto
+        .randomBytes(32)
+        .toString('hex');
+
+    const verifyTokenHash =
+      crypto
+        .createHash('sha256')
+        .update(
+          rawVerifyToken
+        )
+        .digest('hex');
+
 
     await query(
       `UPDATE yks2_users
        SET
          email_verify_token_hash = $1,
-       email_verify_expires_at =
-  NOW() + INTERVAL '24 hours',
-email_verify_last_sent_at = NOW(),
-updated_at = NOW()
+         email_verify_expires_at =
+           NOW() + INTERVAL '24 hours',
+         email_verify_last_sent_at = NOW(),
+         updated_at = NOW()
        WHERE id = $2`,
-      [verifyTokenHash, user.id]
+      [
+        verifyTokenHash,
+        user.id
+      ]
     );
 
-    const baseUrl =
-      process.env.APP_URL ||
-      'https://yksmaster-v.vercel.app';
 
     const verifyUrl =
-      `${baseUrl}/?verifyEmailToken=${encodeURIComponent(rawVerifyToken)}`;
+      `${appUrl}/?verifyEmailToken=` +
+      encodeURIComponent(
+        rawVerifyToken
+      );
+
 
     try {
       await sendEmail({
-        to: user.email,
+        to:
+          user.email,
+
         subject:
           'YKS Master 360 - E-posta Doğrulama',
+
         html: `
           <div style="font-family:Arial,sans-serif;line-height:1.6">
             <h2>E-posta adresini doğrula</h2>
@@ -108,22 +230,34 @@ updated_at = NOW()
           </div>
         `
       });
+
     } catch (emailErr) {
+      /*
+        Mail gitmediyse tokenı geçersizleştir.
+      */
       await query(
         `UPDATE yks2_users
          SET
-         email_verify_token_hash = NULL,
-email_verify_expires_at = NULL,
-email_verify_last_sent_at = NULL,
-updated_at = NOW()
+           email_verify_token_hash = NULL,
+           email_verify_expires_at = NULL,
+           email_verify_last_sent_at = NULL,
+           updated_at = NOW()
          WHERE id = $1`,
-        [user.id]
+        [
+          user.id
+        ]
       );
 
       throw emailErr;
     }
 
-    return res.status(200).json(genericResponse);
+
+    return res
+      .status(200)
+      .json(
+        genericResponse
+      );
+
 
   } catch (err) {
     console.error(
@@ -131,9 +265,11 @@ updated_at = NOW()
       err
     );
 
-    return res.status(500).json({
-      error:
-        'Doğrulama e-postası şu anda gönderilemedi.'
-    });
+    return res
+      .status(500)
+      .json({
+        error:
+          'Doğrulama e-postası şu anda gönderilemedi.'
+      });
   }
 }
