@@ -13,27 +13,12 @@ import { turkeyDate } from '../lib/dates.js';
 import { getCurriculumForField } from '../data/curriculum.js';
 
 
-function normalizeLabel(
-  value
-) {
-  return String(
-    value || ''
-  )
-    .toLocaleLowerCase(
-      'tr-TR'
-    )
-    .replace(
-      /[’'"]/g,
-      ''
-    )
-    .replace(
-      /[(){}\[\].,:;!?/\\|_-]/g,
-      ' '
-    )
-    .replace(
-      /\s+/g,
-      ' '
-    )
+function normalizeLabel(value) {
+  return String(value || '')
+    .toLocaleLowerCase('tr-TR')
+    .replace(/[’'"]/g, '')
+    .replace(/[(){}\[\].,:;!?/\\|_-]/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -47,14 +32,10 @@ function findCanonicalSubject(
   }
 
   const curriculum =
-    getCurriculumForField(
-      track
-    );
+    getCurriculumForField(track);
 
   const wanted =
-    normalizeLabel(
-      subject
-    );
+    normalizeLabel(subject);
 
   const subjects =
     new Set([
@@ -90,18 +71,15 @@ function findCanonicalTopic(
   subject,
   topic
 ) {
-  if (!topic) {
-    return '';
-  }
-
-  if (!subject) {
+  if (
+    !subject ||
+    !topic
+  ) {
     return null;
   }
 
   const curriculum =
-    getCurriculumForField(
-      track
-    );
+    getCurriculumForField(track);
 
 
   const topics = [
@@ -120,11 +98,17 @@ function findCanonicalTopic(
 
 
   const wanted =
-    normalizeLabel(
-      topic
-    );
+    normalizeLabel(topic);
 
 
+  /*
+    Önce tam normalize edilmiş
+    eşleşmeyi bul.
+
+    Örn:
+    temel kavramlar
+    Temel Kavramlar
+  */
   const exact =
     topics.find(
       item =>
@@ -140,12 +124,8 @@ function findCanonicalTopic(
 
 
   /*
-    Çok küçük yazım farklarında yalnızca
-    tek açık eşleşme varsa kabul et.
-
-    Örneğin:
-    "temel kavramlar"
-    "Temel Kavramlar"
+    Açık şekilde aynı konuyu ifade eden
+    tek bir sonuç varsa resmi adı kullan.
   */
   const possible =
     topics.filter(
@@ -381,11 +361,9 @@ export default async function handler(
 
 
   /*
-    Ders adını müfredattaki resmî
-    ders adına dönüştür.
-
-    Örneğin büyük/küçük harf farkı
-    kayıt işlemini bozmaz.
+    Ders güvenli şekilde hâlâ
+    öğrencinin alanındaki resmi
+    derslerden biri olmalı.
   */
   const subject =
     findCanonicalSubject(
@@ -408,33 +386,21 @@ export default async function handler(
 
 
   /*
-    Konu girilmişse, ders seçilmiş
-    olması gerekir.
+    Konu tamamen serbesttir.
+
+    Önce müfredatta açık bir eşleşme
+    bulmaya çalışıyoruz.
+
+    Bulursak resmi adı kullanıyoruz.
+
+    Bulamazsak öğrencinin yazdığı metni
+    olduğu gibi kabul ediyoruz.
+
+    Böylece yazım hatası, alternatif konu
+    adı veya öğrencinin kendi başlığı
+    kayıt işlemini engellemez.
   */
-  if (
-    rawTopic &&
-    !subject
-  ) {
-    return res
-      .status(400)
-      .json({
-        error:
-          'Konu girmek için önce ders seç.'
-      });
-  }
-
-
-  /*
-    Konuyu da müfredattaki resmî
-    konu adına dönüştür.
-
-    Böylece:
-    "temel kavramlar"
-    "Temel Kavramlar"
-
-    aynı konu olarak kabul edilir.
-  */
-  const topic =
+  const canonicalTopic =
     findCanonicalTopic(
       user.track,
       subject,
@@ -442,17 +408,10 @@ export default async function handler(
     );
 
 
-  if (
-    rawTopic &&
-    !topic
-  ) {
-    return res
-      .status(400)
-      .json({
-        error:
-          'Seçilen konu müfredat listesinde bulunmuyor.'
-      });
-  }
+  const topic =
+    canonicalTopic ||
+    rawTopic ||
+    '';
 
 
   const result =
@@ -490,7 +449,7 @@ export default async function handler(
         user.id,
         sessionDate,
         subject || '',
-        topic || '',
+        topic,
         durationMinutes,
         source
       ]
@@ -505,8 +464,7 @@ export default async function handler(
         subject:
           subject || '',
 
-        topic:
-          topic || '',
+        topic,
 
         minutes:
           durationMinutes,
