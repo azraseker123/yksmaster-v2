@@ -3043,12 +3043,12 @@ KURALLAR:
           input:
             prompt,
 
-          image: {
-            data:
-              m[2],
+image: {
+  data:
+    safeBase64,
 
-            mimeType:
-              m[1]
+  mimeType
+}
           }
         });
 
