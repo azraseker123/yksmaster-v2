@@ -109,15 +109,148 @@ const ROUTES = new Map([
 
 
 /*
-  Browser POST / PUT / PATCH / DELETE
-  isteklerinde başka bir origin'den gelen
-  isteği reddeder.
+  Bir URL değerini güvenli origin biçimine çevir.
 
-  Origin header'ı olmayan server-to-server
-  istekler engellenmez.
+  Örnek:
+  https://example.com/path
+  ->
+  https://example.com
+*/
+function normalizeOrigin(value) {
+  if (
+    typeof value !== 'string' ||
+    !value.trim()
+  ) {
+    return null;
+  }
 
-  Bu önemli çünkü ileride Shopier webhook'u
-  tarayıcıdan gelmeyebilir.
+  try {
+    return new URL(
+      value.trim()
+    ).origin.toLowerCase();
+
+  } catch {
+    return null;
+  }
+}
+
+
+/*
+  Bu deployment için kabul edilen origin'leri oluştur.
+
+  1. APP_URL:
+     Asıl production adresi.
+
+  2. VERCEL_URL:
+     Preview / Vercel deployment adresi.
+
+  3. Host fallback:
+     APP_URL henüz yapılandırılmadıysa uygulamanın
+     çalışmayı tamamen bırakmaması için.
+*/
+function allowedOrigins(req) {
+  const origins =
+    new Set();
+
+
+  const appOrigin =
+    normalizeOrigin(
+      process.env.APP_URL
+    );
+
+  if (appOrigin) {
+    origins.add(
+      appOrigin
+    );
+  }
+
+
+  const vercelUrl =
+    typeof process.env.VERCEL_URL ===
+      'string'
+      ? process.env.VERCEL_URL.trim()
+      : '';
+
+  if (vercelUrl) {
+    const vercelOrigin =
+      normalizeOrigin(
+        `https://${vercelUrl}`
+      );
+
+    if (vercelOrigin) {
+      origins.add(
+        vercelOrigin
+      );
+    }
+  }
+
+
+  /*
+    Host header Vercel tarafından gelen
+    mevcut deployment hostudur.
+
+    Burada x-forwarded-host kullanmıyoruz.
+  */
+  const host =
+    typeof req.headers?.host ===
+      'string'
+      ? req.headers.host.trim()
+      : '';
+
+
+  if (host) {
+    /*
+      Production'da HTTPS bekliyoruz.
+
+      Local development'ta HTTP kullanılabilir.
+    */
+    const protocol =
+      process.env.NODE_ENV ===
+        'production'
+        ? 'https'
+        : (
+            typeof req.headers[
+              'x-forwarded-proto'
+            ] === 'string' &&
+            req.headers[
+              'x-forwarded-proto'
+            ]
+              .split(',')[0]
+              .trim() === 'https'
+              ? 'https'
+              : 'http'
+          );
+
+
+    const hostOrigin =
+      normalizeOrigin(
+        `${protocol}://${host}`
+      );
+
+    if (hostOrigin) {
+      origins.add(
+        hostOrigin
+      );
+    }
+  }
+
+
+  return origins;
+}
+
+
+/*
+  Browser kaynaklı state-changing isteklerde
+  cross-site çağrıları reddeder.
+
+  POST / PUT / PATCH / DELETE korunur.
+
+  Server-to-server webhook çağrılarında Origin
+  bulunmayabilir. Bu nedenle Origin yoksa
+  Sec-Fetch-Site bilgisine de bakıyoruz.
+
+  Cross-site browser isteği olduğu açıkça
+  görülüyorsa Origin olmasa bile reddedilir.
 */
 function originAllowed(req) {
   const method =
@@ -125,6 +258,7 @@ function originAllowed(req) {
       req.method ||
       ''
     ).toUpperCase();
+
 
   if (
     ![
@@ -137,55 +271,62 @@ function originAllowed(req) {
     return true;
   }
 
+
   const origin =
     typeof req.headers?.origin ===
       'string'
-      ? req.headers.origin
+      ? req.headers.origin.trim()
       : '';
 
+
+  const fetchSite =
+    typeof req.headers[
+      'sec-fetch-site'
+    ] === 'string'
+      ? req.headers[
+          'sec-fetch-site'
+        ]
+          .trim()
+          .toLowerCase()
+      : '';
+
+
   /*
-    Browser dışı/server-to-server çağrılarda
-    Origin bulunmayabilir.
+    Origin yok ama browser isteğinin açıkça
+    cross-site olduğu görülüyorsa reddet.
+
+    Server-to-server çağrılarda Sec-Fetch-Site
+    genellikle bulunmaz.
   */
   if (!origin) {
+    if (
+      fetchSite === 'cross-site'
+    ) {
+      return false;
+    }
+
     return true;
   }
 
-  const forwardedHost =
-    typeof req.headers[
-      'x-forwarded-host'
-    ] === 'string'
-      ? req.headers[
-          'x-forwarded-host'
-        ].split(',')[0].trim()
-      : '';
 
-  const host =
-    forwardedHost ||
-    (
-      typeof req.headers.host ===
-        'string'
-        ? req.headers.host.trim()
-        : ''
+  const requestOrigin =
+    normalizeOrigin(
+      origin
     );
 
-  if (!host) {
+
+  if (!requestOrigin) {
     return false;
   }
 
-  try {
-    const originUrl =
-      new URL(origin);
 
-    return (
-      originUrl.host
-        .toLowerCase() ===
-      host.toLowerCase()
-    );
+  const allowed =
+    allowedOrigins(req);
 
-  } catch {
-    return false;
-  }
+
+  return allowed.has(
+    requestOrigin
+  );
 }
 
 
@@ -217,7 +358,21 @@ export default async function handler(
     'no-referrer'
   );
 
+  res.setHeader(
+    'X-Frame-Options',
+    'DENY'
+  );
 
+  res.setHeader(
+    'Permissions-Policy',
+    'camera=(), microphone=(), geolocation=()'
+  );
+
+
+  /*
+    Browser kaynaklı cross-origin
+    state-changing istekleri reddet.
+  */
   if (
     !originAllowed(req)
   ) {
@@ -250,8 +405,8 @@ export default async function handler(
 
 
   /*
-    Çok uzun/garip route değerlerini
-    daha handler aramadan reddet.
+    Çok uzun / anlamsız route değerlerini
+    handler aramadan reddet.
   */
   if (
     !route ||
@@ -267,7 +422,9 @@ export default async function handler(
 
 
   const routeHandler =
-    ROUTES.get(route);
+    ROUTES.get(
+      route
+    );
 
 
   if (!routeHandler) {
@@ -281,8 +438,10 @@ export default async function handler(
 
 
   /*
-    "route" yalnızca iç routing için.
-    Alt handler'a taşımıyoruz.
+    route yalnızca merkezi routing için.
+
+    Alt handler'a gereksiz query parametresi
+    taşımıyoruz.
   */
   if (
     req.query &&
@@ -306,19 +465,21 @@ export default async function handler(
   } catch (err) {
     /*
       Beklenmeyen handler hatalarının
-      stack trace / DB mesajı gibi
-      detayları kullanıcıya sızmasın.
+      stack trace / SQL mesajı / dosya yolu
+      gibi detaylarını kullanıcıya sızdırma.
     */
     console.error(
       `Unhandled API error [${route}]:`,
       err
     );
 
+
     if (
       res.headersSent
     ) {
       return;
     }
+
 
     return res
       .status(500)
