@@ -883,10 +883,13 @@ function aiErrorResponse(err, res) {
   status === 429
 ) {
   return res.status(429).json({
-    error:
-      err?.code === 'AI_LIMIT'
-        ? err.message
-        : 'AI şu anda yoğun. Birkaç saniye sonra yeniden dene.'
+  error:
+  (
+    err?.code === 'AI_LIMIT' ||
+    err?.code === 'AI_COST_LIMIT'
+  )
+    ? err.message
+    : 'AI şu anda yoğun. Birkaç saniye sonra yeniden dene.'
   });
 }
 
