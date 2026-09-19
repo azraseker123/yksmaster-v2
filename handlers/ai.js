@@ -2845,31 +2845,169 @@ ${JSON.stringify(ctx)}`
 Final cevabı en sonda belirt.`;
 
 
-      const m =
-        imageData.match(
-          /^data:(image\/(?:jpeg|png|webp));base64,(.+)$/
-        );
+     const m =
+  imageData.match(
+    /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/
+  );
 
 
-      if (!m) {
-        return res.status(400).json({
-          error:
-            'Geçerli JPEG, PNG veya WEBP soru fotoğrafı gerekli.'
-        });
-      }
+if (!m) {
+  return res.status(400).json({
+    error:
+      'Geçerli JPEG, PNG veya WEBP soru fotoğrafı gerekli.'
+  });
+}
 
 
-      if (
-        m[2].length >
-        12_000_000
-      ) {
-        return res.status(413).json({
-          error:
-            'Görsel çok büyük.'
-        });
-      }
+const mimeType =
+  m[1];
+
+const base64Data =
+  m[2];
 
 
+/*
+  Base64 metnini decode etmeden önce de sınırla.
+
+  Yaklaşık 6 MB gerçek dosya için base64
+  yaklaşık 8 MB civarında olur.
+*/
+if (
+  base64Data.length >
+  8_000_000
+) {
+  return res.status(413).json({
+    error:
+      'Görsel çok büyük. Daha küçük bir fotoğraf yükle.'
+  });
+}
+
+
+/*
+  Standart base64 uzunluğu 4'ün katı olmalı.
+*/
+if (
+  base64Data.length % 4 !== 0
+) {
+  return res.status(400).json({
+    error:
+      'Görsel verisi geçersiz.'
+  });
+}
+
+
+let imageBuffer;
+
+try {
+  imageBuffer =
+    Buffer.from(
+      base64Data,
+      'base64'
+    );
+} catch {
+  return res.status(400).json({
+    error:
+      'Görsel verisi okunamadı.'
+  });
+}
+
+
+/*
+  Boş / anlamsız veri ve gerçek byte boyutu kontrolü.
+*/
+if (
+  imageBuffer.length < 16
+) {
+  return res.status(400).json({
+    error:
+      'Görsel verisi geçersiz.'
+  });
+}
+
+
+if (
+  imageBuffer.length >
+  6_000_000
+) {
+  return res.status(413).json({
+    error:
+      'Görsel çok büyük. En fazla 6 MB görsel yükleyebilirsin.'
+  });
+}
+
+
+/*
+  Kullanıcının MIME etiketiyle gerçek dosya başlığının
+  uyuşup uyuşmadığını kontrol et.
+
+  Sadece uzantıya veya data URL içindeki MIME adına
+  güvenmiyoruz.
+*/
+const isJpeg =
+  imageBuffer.length >= 3 &&
+  imageBuffer[0] === 0xff &&
+  imageBuffer[1] === 0xd8 &&
+  imageBuffer[2] === 0xff;
+
+
+const isPng =
+  imageBuffer.length >= 8 &&
+  imageBuffer[0] === 0x89 &&
+  imageBuffer[1] === 0x50 &&
+  imageBuffer[2] === 0x4e &&
+  imageBuffer[3] === 0x47 &&
+  imageBuffer[4] === 0x0d &&
+  imageBuffer[5] === 0x0a &&
+  imageBuffer[6] === 0x1a &&
+  imageBuffer[7] === 0x0a;
+
+
+const isWebp =
+  imageBuffer.length >= 12 &&
+  imageBuffer.toString(
+    'ascii',
+    0,
+    4
+  ) === 'RIFF' &&
+  imageBuffer.toString(
+    'ascii',
+    8,
+    12
+  ) === 'WEBP';
+
+
+const mimeMatches =
+  (
+    mimeType === 'image/jpeg' &&
+    isJpeg
+  ) ||
+  (
+    mimeType === 'image/png' &&
+    isPng
+  ) ||
+  (
+    mimeType === 'image/webp' &&
+    isWebp
+  );
+
+
+if (!mimeMatches) {
+  return res.status(400).json({
+    error:
+      'Dosya içeriği JPEG, PNG veya WEBP formatıyla eşleşmiyor.'
+  });
+}
+
+
+/*
+  Decode edilen veriyi yeniden standardize ediyoruz.
+  Gemini'ye kullanıcının ham base64 metnini değil,
+  doğruladığımız byte verisini gönderiyoruz.
+*/
+const safeBase64 =
+  imageBuffer.toString(
+    'base64'
+  );
       const answer =
         await geminiText({
           userId:
