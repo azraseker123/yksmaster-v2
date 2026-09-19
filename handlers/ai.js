@@ -2824,31 +2824,203 @@ ${JSON.stringify(ctx)}`
     /*
       FOTOĞRAFTAN SORU ÇÖZME
     */
-    if (
-      action === 'solve_image'
-    ) {
-      const imageData =
-        String(
-          req.body?.imageData ||
-          ''
-        );
+  if (
+  action === 'solve_image'
+) {
+  const imageData =
+    String(
+      req.body?.imageData ||
+      ''
+    );
 
-
-      const prompt =
-        text(
-          req.body?.prompt,
-          1200
-        ) ||
-        `Bu YKS sorusunu çöz.
+  const prompt =
+    text(
+      req.body?.prompt,
+      1200
+    ) ||
+    `Bu YKS sorusunu çöz.
 
 Öğrencinin anlamadığı noktayı öğretir gibi açıkla.
 Final cevabı en sonda belirt.`;
 
+  const m =
+    imageData.match(
+      /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/
+    );
 
-     const m =
-  imageData.match(
-    /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/
-  );
+  if (!m) {
+    return res.status(400).json({
+      error:
+        'Geçerli JPEG, PNG veya WEBP soru fotoğrafı gerekli.'
+    });
+  }
+
+  const mimeType =
+    m[1];
+
+  const base64Data =
+    m[2];
+
+  if (
+    base64Data.length >
+    8_000_000
+  ) {
+    return res.status(413).json({
+      error:
+        'Görsel çok büyük. Daha küçük bir fotoğraf yükle.'
+    });
+  }
+
+  if (
+    base64Data.length % 4 !== 0
+  ) {
+    return res.status(400).json({
+      error:
+        'Görsel verisi geçersiz.'
+    });
+  }
+
+  let imageBuffer;
+
+  try {
+    imageBuffer =
+      Buffer.from(
+        base64Data,
+        'base64'
+      );
+  } catch {
+    return res.status(400).json({
+      error:
+        'Görsel verisi okunamadı.'
+    });
+  }
+
+  if (
+    imageBuffer.length < 16
+  ) {
+    return res.status(400).json({
+      error:
+        'Görsel verisi geçersiz.'
+    });
+  }
+
+  if (
+    imageBuffer.length >
+    6_000_000
+  ) {
+    return res.status(413).json({
+      error:
+        'Görsel çok büyük. En fazla 6 MB görsel yükleyebilirsin.'
+    });
+  }
+
+  const isJpeg =
+    imageBuffer.length >= 3 &&
+    imageBuffer[0] === 0xff &&
+    imageBuffer[1] === 0xd8 &&
+    imageBuffer[2] === 0xff;
+
+  const isPng =
+    imageBuffer.length >= 8 &&
+    imageBuffer[0] === 0x89 &&
+    imageBuffer[1] === 0x50 &&
+    imageBuffer[2] === 0x4e &&
+    imageBuffer[3] === 0x47 &&
+    imageBuffer[4] === 0x0d &&
+    imageBuffer[5] === 0x0a &&
+    imageBuffer[6] === 0x1a &&
+    imageBuffer[7] === 0x0a;
+
+  const isWebp =
+    imageBuffer.length >= 12 &&
+    imageBuffer.toString(
+      'ascii',
+      0,
+      4
+    ) === 'RIFF' &&
+    imageBuffer.toString(
+      'ascii',
+      8,
+      12
+    ) === 'WEBP';
+
+  const mimeMatches =
+    (
+      mimeType === 'image/jpeg' &&
+      isJpeg
+    ) ||
+    (
+      mimeType === 'image/png' &&
+      isPng
+    ) ||
+    (
+      mimeType === 'image/webp' &&
+      isWebp
+    );
+
+  if (!mimeMatches) {
+    return res.status(400).json({
+      error:
+        'Dosya içeriği JPEG, PNG veya WEBP formatıyla eşleşmiyor.'
+    });
+  }
+
+  const safeBase64 =
+    imageBuffer.toString(
+      'base64'
+    );
+
+  const answer =
+    await geminiText({
+      userId:
+        user.id,
+
+      action,
+
+      model:
+        GEMINI_MODEL,
+
+      systemInstruction:
+        `${SYSTEM}
+
+SENİN GÖREVİN:
+Fotoğraftaki YKS sorusunu öğrencinin gerçekten anlayacağı biçimde açıklamak.
+
+KURALLAR:
+- Önce görseldeki soruyu doğru anladığından emin ol.
+- Görsel yeterince okunmuyorsa ASLA tahmin etme; daha net fotoğraf iste.
+- Soruyu baştan sona gereksiz yere tekrar yazma.
+- Öğrencinin özellikle sorduğu noktaya öncelik ver.
+- Çözümü mantıksal adımlara ayır.
+- Formül kullanıyorsan formülün neden kullanıldığını açıkla.
+- Matematik ifadelerini sade metin ve Unicode karakterlerle yaz.
+- LaTeX KULLANMA.
+- $ ve $$ KULLANMA.
+- \\frac, \\div, \\times, \\boxed gibi komutlar KULLANMA.
+- **kalın** gibi Markdown işaretleri KULLANMA.
+- Gereksiz övgü veya giriş yapma.
+- Final cevabı en sonda "Cevap: ..." biçiminde belirt.
+`,
+
+      input:
+        prompt,
+
+      image: {
+        data:
+          safeBase64,
+
+        mimeType
+      }
+    });
+
+  return res
+    .status(200)
+    .json({
+      answer,
+      model:
+        GEMINI_MODEL
+    });
+}
 
 
 if (!m) {
