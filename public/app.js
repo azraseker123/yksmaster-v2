@@ -2616,7 +2616,7 @@ async function renderSleep(){
 }
 
 async function renderBadges(){
-  const d=await api('/api/badges');root.innerHTML=`<div class="section-title"><div><span class="eyebrow">OYUNLAŞTIRMA</span><h1>Rozetler</h1><p>Rozetler gerçek çalışma, soru, kaynak ve müfredat verilerinden otomatik açılır.</p></div><span class="tag green">${(d.items||[]).filter(x=>x.earned).length}/${(d.items||[]).length} kazanıldı</span></div><div class="card-grid">${(d.items||[]).map(x=>`<article class="badge-card ${x.earned?'':'locked'}"><div class="badge-icon">${x.icon}</div><h4>${esc(x.label)}</h4><p>${esc(x.description)}</p><div class="badge-date">${x.earned?`Kazanıldı · ${fmtDate(x.earnedAt)}`:'Henüz kilitli'}</div></article>`).join('')}</div>`;
+  const d=await api('/api/badges');root.innerHTML=`<div class="section-title"><div><span class="eyebrow">OYUNLAŞTIRMA</span><h1>Rozetler</h1><p>Rozetler gerçek çalışma, soru, kaynak ve müfredat verilerinden otomatik açılır.</p></div><span class="tag green">${(d.items||[]).filter(x=>x.earned).length}/${(d.items||[]).length} kazanıldı</span></div><div class="card-grid">${(d.items||[]).map(x=>`<article class="badge-card ${x.earned?'':'locked'}"><div class="badge-icon">${esc(x.icon)}</div><h4>${esc(x.label)}</h4><p>${esc(x.description)}</p><div class="badge-date">${x.earned?`Kazanıldı · ${fmtDate(x.earnedAt)}`:'Henüz kilitli'}</div></article>`).join('')}</div>`;
 }
 
 function cleanAiText(value=''){
